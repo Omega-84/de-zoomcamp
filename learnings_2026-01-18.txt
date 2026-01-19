@@ -192,15 +192,5 @@ Why Parquet?
 
 
 ================================================================================
-                            NEXT STEPS / TO-DO
-================================================================================
-
-[ ] Learn about Dockerfiles to create custom images
-[ ] Mount volumes to persist data between container runs
-[ ] Build a Docker image for the pipeline script
-[ ] Learn docker-compose for multi-container applications
-
-
-================================================================================
                               END OF LOG
 ================================================================================
