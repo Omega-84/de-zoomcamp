@@ -1,0 +1,278 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 19, 2026
+================================================================================
+
+SESSION DURATION: Day 2 of the bootcamp
+
+================================================================================
+                         TOPIC 1: POSTGRESQL WITH DOCKER
+================================================================================
+
+Running PostgreSQL in a container with persistent storage using Docker volumes.
+
+--------------------------------------------------------------------------------
+RUNNING POSTGRES CONTAINER
+--------------------------------------------------------------------------------
+
+Command: docker run -it --rm \
+           -e POSTGRES_USER="root" \
+           -e POSTGRES_PASSWORD="root" \
+           -e POSTGRES_DB="ny_taxi" \
+           -v ny_taxi_postgres_data:/var/lib/postgresql \
+           -p 5432:5432 \
+           postgres:18
+
+Breakdown of flags:
+  -it                    Interactive mode with TTY
+  --rm                   Automatically remove container when it exits
+  -e POSTGRES_USER       Set the PostgreSQL superuser name
+  -e POSTGRES_PASSWORD   Set the superuser password
+  -e POSTGRES_DB         Create a database with this name on startup
+  -v <name>:<path>       Mount a named volume for data persistence
+  -p 5432:5432           Map host port to container port
+  postgres:18            Use PostgreSQL version 18 image
+
+Why use volumes?
+- Containers are ephemeral - data is lost when container is removed
+- Volumes persist data outside the container lifecycle
+- Named volumes (ny_taxi_postgres_data) are managed by Docker
+
+
+================================================================================
+                           TOPIC 2: PGCLI - POSTGRES CLI
+================================================================================
+
+pgcli is an interactive command-line interface for PostgreSQL with 
+auto-completion and syntax highlighting.
+
+--------------------------------------------------------------------------------
+INSTALLING PGCLI
+--------------------------------------------------------------------------------
+
+Command: uv add --dev pgcli
+Purpose: Add pgcli as a development dependency using uv
+
+Problem encountered:
+  ImportError: no pq wrapper available.
+  - couldn't import psycopg 'binary' implementation: No module named 'psycopg_binary'
+
+Solution:
+  Command: uv add --dev psycopg-binary
+  Purpose: Install the binary version of psycopg which bundles libpq
+
+Why psycopg-binary?
+- pgcli uses psycopg (PostgreSQL driver for Python)
+- psycopg needs libpq (PostgreSQL C library)
+- psycopg-binary bundles libpq, avoiding system dependency installation
+
+--------------------------------------------------------------------------------
+CONNECTING WITH PGCLI
+--------------------------------------------------------------------------------
+
+Command: pgcli -h localhost -p 5432 -u root -d ny_taxi
+Flags:
+  -h    Host (localhost since container port is mapped)
+  -p    Port number
+  -u    Username
+  -d    Database name
+
+
+================================================================================
+                         TOPIC 3: CREATING A DOCKERFILE
+================================================================================
+
+Created a Dockerfile to containerize the Python pipeline script.
+
+FILE: /home/nayya/de-zoomcamp/pipeline/Dockerfile
+--------------------------------------------------------------------------------
+
+FROM python:3.13.11-slim
+  - Base image: slim Python image (smaller than full image)
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+  - Multi-stage copy: grab uv binary from official uv image
+  - This avoids installing uv via curl/pip in the container
+
+WORKDIR /code
+  - Set the working directory inside the container
+
+ENV PATH="/code/.venv/bin:$PATH"
+  - Add virtual environment to PATH so python/packages are found
+
+COPY pyproject.toml uv.lock .python-version ./
+  - Copy dependency files first (for Docker layer caching)
+  - If these don't change, Docker reuses cached layers
+
+RUN uv sync --locked
+  - Install dependencies from lock file
+  - --locked ensures exact versions from uv.lock are used
+
+COPY pipeline.py .
+  - Copy the actual script (after deps for better caching)
+
+ENTRYPOINT ["python", "pipeline.py"]
+  - Default command when container runs
+  - Arguments passed to 'docker run' are appended (e.g., month number)
+
+--------------------------------------------------------------------------------
+DOCKERFILE BEST PRACTICES LEARNED
+--------------------------------------------------------------------------------
+
+1. Use slim/alpine base images when possible (smaller size)
+2. Copy dependency files before source code (layer caching)
+3. Use .dockerignore to exclude unnecessary files
+4. Use ENTRYPOINT for containers that run a specific command
+5. Use multi-stage builds to copy binaries (like uv)
+
+--------------------------------------------------------------------------------
+COMPLETE DOCKERFILE CONTENTS
+--------------------------------------------------------------------------------
+
+# Dockerfile for pipeline project
+FROM python:3.13.11-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+
+WORKDIR /code
+
+ENV PATH="/code/.venv/bin:$PATH"
+
+COPY pyproject.toml uv.lock .python-version ./
+
+RUN uv sync --locked
+
+COPY pipeline.py .
+
+ENTRYPOINT ["python", "pipeline.py"]
+
+
+================================================================================
+                      TOPIC 4: UV VS PIP IN DOCKER
+================================================================================
+
+Comparison of two approaches for managing Python dependencies in Docker.
+
+--------------------------------------------------------------------------------
+TRADITIONAL PIP APPROACH
+--------------------------------------------------------------------------------
+
+# Dockerfile using pip
+FROM python:3.13.11-slim
+
+WORKDIR /code
+
+COPY requirements.txt ./
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY pipeline.py .
+
+ENTRYPOINT ["python", "pipeline.py"]
+
+Pros:
+- Familiar to most Python developers
+- No additional tools needed
+
+Cons:
+- Slower dependency resolution
+- No lock file by default (less reproducible)
+- Need to generate requirements.txt manually
+
+--------------------------------------------------------------------------------
+MODERN UV APPROACH
+--------------------------------------------------------------------------------
+
+# Dockerfile using uv
+FROM python:3.13.11-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+
+WORKDIR /code
+
+ENV PATH="/code/.venv/bin:$PATH"
+
+COPY pyproject.toml uv.lock .python-version ./
+
+RUN uv sync --locked
+
+COPY pipeline.py .
+
+ENTRYPOINT ["python", "pipeline.py"]
+
+Pros:
+- 10-100x faster than pip
+- Lock file (uv.lock) ensures reproducible builds
+- pyproject.toml is the modern Python standard
+- Multi-stage COPY grabs uv binary efficiently
+
+Cons:
+- Newer tool, less documentation
+- Requires understanding of pyproject.toml
+
+--------------------------------------------------------------------------------
+BUILD & RUN COMMANDS
+--------------------------------------------------------------------------------
+
+# Build the image
+Command: docker build -t test:pandas .
+Purpose: Build image with tag "test:pandas" from current directory
+
+# Run the container
+Command: docker run -it --rm test:pandas 12
+Purpose: Run container interactively, remove on exit, pass "12" as argument
+
+# Debug inside container
+Command: docker run -it --rm --entrypoint=bash test:pandas
+Purpose: Override entrypoint to get a bash shell for debugging
+
+
+================================================================================
+                         TOPIC 5: PROJECT ORGANIZATION
+================================================================================
+
+Organized the repository structure:
+
+de-zoomcamp/
+├── .gitignore              # Ignore venvs, parquet files
+├── learning_logs/          # Daily learning documentation
+│   ├── learnings_2026-01-18.txt
+│   └── learnings_2026-01-19.txt
+├── pipeline/
+│   ├── Dockerfile          # Container definition
+│   ├── pipeline.py         # Main script
+│   ├── pyproject.toml      # Project dependencies
+│   ├── uv.lock             # Locked dependency versions
+│   └── .python-version     # Python version for uv
+└── test/
+    └── list_files.py
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Docker volumes persist data beyond container lifecycle
+2. psycopg-binary bundles libpq - no system deps needed
+3. pgcli provides a better PostgreSQL CLI experience
+4. Dockerfile layer ordering matters for build cache efficiency
+5. Copy dependency files before source code in Dockerfiles
+6. Use uv in containers via multi-stage COPY from official image
+
+
+================================================================================
+                              COMMANDS CHEATSHEET
+================================================================================
+
+| Task                          | Command                                    |
+|-------------------------------|------------------------------------------- |
+| Run Postgres container        | docker run -e POSTGRES_USER=... postgres   |
+| Connect with pgcli            | pgcli -h localhost -p 5432 -u root -d db   |
+| Add dev dependency (uv)       | uv add --dev <package>                     |
+| Build Docker image            | docker build -t <name> .                   |
+| Run container with args       | docker run <image> <args>                  |
+
+
+================================================================================
+                               END OF LOG
+================================================================================
