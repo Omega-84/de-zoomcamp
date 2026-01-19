@@ -1,0 +1,206 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 18, 2026
+================================================================================
+
+SESSION DURATION: ~50 minutes (7:18 PM - 8:09 PM EST)
+
+================================================================================
+                           TOPIC 1: DOCKER BASICS
+================================================================================
+
+What is Docker?
+---------------
+Docker is a platform for developing, shipping, and running applications in 
+containers. Containers are lightweight, isolated environments that package 
+an application with all its dependencies.
+
+Key Concepts:
+- IMAGE: A read-only template (like a blueprint) for creating containers
+- CONTAINER: A running instance of an image (the actual running application)
+
+--------------------------------------------------------------------------------
+DOCKER AUTHENTICATION
+--------------------------------------------------------------------------------
+
+Command: docker login
+Purpose: Authenticate with Docker Hub (default registry) to push/pull images
+Usage:   Enter username and password/access token when prompted
+
+For other registries:
+- AWS ECR:    aws ecr get-login-password | docker login --username AWS --password-stdin <url>
+- Google:     gcloud auth configure-docker
+- GitHub:     echo $TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+--------------------------------------------------------------------------------
+RUNNING CONTAINERS
+--------------------------------------------------------------------------------
+
+Command: docker run -it ubuntu
+Purpose: Run an Ubuntu container interactively
+Flags:
+  -i  = Interactive mode (keep STDIN open)
+  -t  = Allocate a pseudo-TTY (terminal)
+Result: Drops you into a bash shell inside a fresh Ubuntu environment
+
+Command: docker run -it python:3.13.11
+Purpose: Run a Python container with specific version
+Result: Drops you into Python REPL inside the container
+
+--------------------------------------------------------------------------------
+VIEWING CONTAINERS
+--------------------------------------------------------------------------------
+
+Command: docker ps
+Purpose: List all RUNNING containers
+Output:  Container ID, Image, Command, Created, Status, Ports, Names
+
+Command: docker ps -a
+Purpose: List ALL containers (including stopped ones)
+Note:    The -a flag shows containers that have exited
+
+Command: docker ps -aq
+Purpose: List only container IDs (quiet mode) for all containers
+Use:     Useful for scripting, e.g., docker rm $(docker ps -aq)
+
+--------------------------------------------------------------------------------
+MANAGING CONTAINERS
+--------------------------------------------------------------------------------
+
+Command: docker stop <container_id>
+Purpose: Gracefully stop a running container
+
+Command: docker rm <container_id>
+Purpose: Remove a stopped container
+Note:    Cannot remove running containers without -f flag
+
+Command: docker rm $(docker ps -aq)
+Purpose: Remove ALL stopped containers at once
+Note:    Uses command substitution to get all container IDs
+
+Command: docker rm -f <container_id>
+Purpose: Force remove a container (stops it first if running)
+
+Command: docker container prune
+Purpose: Remove all stopped containers (with confirmation prompt)
+
+--------------------------------------------------------------------------------
+MANAGING IMAGES
+--------------------------------------------------------------------------------
+
+Command: docker images
+Purpose: List all downloaded images
+Output:  Repository, Tag, Image ID, Created, Size
+
+Command: docker rmi <image_name:tag>
+Purpose: Remove an image
+Example: docker rmi python:3.13.11
+Note:    Cannot remove if a container (even stopped) is using it
+
+Command: docker rmi $(docker images -q)
+Purpose: Remove ALL images
+
+Command: docker image prune
+Purpose: Remove dangling (unused) images
+
+Command: docker image prune -a
+Purpose: Remove ALL unused images (not just dangling)
+
+--------------------------------------------------------------------------------
+CLEANUP COMMANDS
+--------------------------------------------------------------------------------
+
+Command: docker system prune
+Purpose: Remove all stopped containers, unused networks, dangling images
+
+Command: docker system prune -a
+Purpose: Nuclear option - removes everything unused (containers, images, etc.)
+Warning: Use with caution!
+
+
+================================================================================
+                      TOPIC 2: PYTHON DATA PIPELINE
+================================================================================
+
+Created a simple data pipeline script that processes data and saves to Parquet.
+
+FILE: /home/nayya/de-zoomcamp/pipeline/pipeline.py
+--------------------------------------------------------------------------------
+
+Code Explanation:
+-----------------
+import sys                  # For reading command-line arguments
+import pandas as pd         # For data manipulation
+
+# sys.argv contains command-line arguments
+# sys.argv[0] = script name, sys.argv[1] = first argument
+month = int(sys.argv[1])
+
+# Create a simple DataFrame
+df = pd.DataFrame({'day': [1, 2], 'num_passengers': [3, 4]})
+df['month'] = month
+
+# Save as Parquet with gzip compression
+df.to_parquet(f'output_{month}.parquet', compression='gzip', index=False)
+
+--------------------------------------------------------------------------------
+RUNNING THE PIPELINE
+--------------------------------------------------------------------------------
+
+Command: python3 pipeline.py 12
+Purpose: Run the script with month=12 as argument
+Output:  Creates output_12.parquet file
+
+--------------------------------------------------------------------------------
+INSTALLING DEPENDENCIES
+--------------------------------------------------------------------------------
+
+Command: pip3 install pyarrow fastparquet
+Purpose: Install Parquet file format support for pandas
+Note:    Either pyarrow OR fastparquet is needed; we installed both
+
+Why Parquet?
+- Columnar storage format (efficient for analytics)
+- Supports compression (gzip, snappy, etc.)
+- Preserves data types
+- Much smaller file size than CSV for large datasets
+
+
+================================================================================
+                           FILES CREATED TODAY
+================================================================================
+
+1. /home/nayya/de-zoomcamp/pipeline/pipeline.py
+   - Data pipeline script that saves DataFrame to Parquet
+
+2. /home/nayya/de-zoomcamp/test/list_files.py
+   - Utility script to list files in current directory
+
+3. /home/nayya/de-zoomcamp/pipeline/output_12.parquet
+   - Output Parquet file from running the pipeline
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Docker containers are ephemeral - data is lost when container is removed
+2. Always use docker ps -a to see stopped containers before removing images
+3. Parquet is preferred over CSV for data engineering (columnar, compressed)
+4. sys.argv allows passing arguments to Python scripts from command line
+5. pyarrow/fastparquet are required for pandas Parquet support
+
+
+================================================================================
+                            NEXT STEPS / TO-DO
+================================================================================
+
+[ ] Learn about Dockerfiles to create custom images
+[ ] Mount volumes to persist data between container runs
+[ ] Build a Docker image for the pipeline script
+[ ] Learn docker-compose for multi-container applications
+
+
+================================================================================
+                              END OF LOG
+================================================================================
