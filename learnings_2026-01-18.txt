@@ -181,6 +181,43 @@ Why Parquet?
 
 
 ================================================================================
+                         TOPIC 3: UV PACKAGE MANAGER
+================================================================================
+
+What is uv?
+-----------
+uv is an extremely fast Python package installer and resolver written in Rust.
+Created by Astral (same team behind Ruff linter). It's a drop-in replacement
+for pip that's 10-100x faster.
+
+--------------------------------------------------------------------------------
+INSTALLING UV
+--------------------------------------------------------------------------------
+
+Method 1 - Standalone Installer (Recommended):
+Command: curl -LsSf https://astral.sh/uv/install.sh | sh
+Purpose: Downloads and installs uv binary to ~/.local/bin
+Note:    Run 'source $HOME/.local/bin/env' to activate, or restart terminal
+
+Method 2 - Using pipx:
+Command: sudo apt install pipx && pipx install uv
+Purpose: Installs uv in an isolated environment via pipx
+
+--------------------------------------------------------------------------------
+USING UV
+--------------------------------------------------------------------------------
+
+Command: uv venv
+Purpose: Create a virtual environment (creates .venv folder)
+
+Command: uv run python script.py
+Purpose: Run a Python script using uv's environment
+
+Command: uv pip install <package>
+Purpose: Install packages (much faster than regular pip)
+
+
+================================================================================
                               KEY TAKEAWAYS
 ================================================================================
 
