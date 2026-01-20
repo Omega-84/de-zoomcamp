@@ -23,20 +23,31 @@ Command: docker run -it --rm \
            -p 5432:5432 \
            postgres:18
 
-Breakdown of flags:
-  -it                    Interactive mode with TTY
-  --rm                   Automatically remove container when it exits
-  -e POSTGRES_USER       Set the PostgreSQL superuser name
-  -e POSTGRES_PASSWORD   Set the superuser password
-  -e POSTGRES_DB         Create a database with this name on startup
-  -v <name>:<path>       Mount a named volume for data persistence
-  -p 5432:5432           Map host port to container port
-  postgres:18            Use PostgreSQL version 18 image
+--------------------------------------------------------------------------------
+DOCKER RUN ARGUMENTS EXPLAINED
+--------------------------------------------------------------------------------
+
+| Argument              | Value                    | Description                          |
+|-----------------------|--------------------------|--------------------------------------|
+| -i                    | (flag)                   | Keep STDIN open for interactive use  |
+| -t                    | (flag)                   | Allocate a pseudo-TTY (terminal)     |
+| --rm                  | (flag)                   | Auto-remove container on exit        |
+| -e POSTGRES_USER      | root                     | Create superuser with this name      |
+| -e POSTGRES_PASSWORD  | root                     | Set password for the superuser       |
+| -e POSTGRES_DB        | ny_taxi                  | Create database on first startup     |
+| -v                    | name:/var/lib/postgresql | Mount named volume for persistence   |
+| -p                    | 5432:5432                | Map host_port:container_port         |
+| (image)               | postgres:18              | PostgreSQL version 18 official image |
+
+Volume explained:
+  ny_taxi_postgres_data:/var/lib/postgresql
+  └── volume_name       └── container path where postgres stores data
 
 Why use volumes?
 - Containers are ephemeral - data is lost when container is removed
 - Volumes persist data outside the container lifecycle
-- Named volumes (ny_taxi_postgres_data) are managed by Docker
+- Named volumes are managed by Docker (docker volume ls to see them)
+- Can be shared between containers
 
 
 ================================================================================
@@ -71,11 +82,33 @@ CONNECTING WITH PGCLI
 --------------------------------------------------------------------------------
 
 Command: pgcli -h localhost -p 5432 -u root -d ny_taxi
-Flags:
-  -h    Host (localhost since container port is mapped)
-  -p    Port number
-  -u    Username
-  -d    Database name
+
+--------------------------------------------------------------------------------
+PGCLI ARGUMENTS EXPLAINED
+--------------------------------------------------------------------------------
+
+| Argument | Value     | Description                                       |
+|----------|-----------|---------------------------------------------------|
+| -h       | localhost | Host where PostgreSQL is running                  |
+|          |           | (localhost because we mapped port with -p)        |
+| -p       | 5432      | Port number PostgreSQL is listening on            |
+| -u       | root      | Username to authenticate with                     |
+| -d       | ny_taxi   | Database name to connect to                       |
+
+Alternative connection formats:
+
+# Using connection string
+pgcli postgres://root:root@localhost:5432/ny_taxi
+
+# Using environment variables
+export PGHOST=localhost PGPORT=5432 PGUSER=root PGDATABASE=ny_taxi
+pgcli
+
+Useful pgcli commands once connected:
+  \dt                    List all tables
+  \d <table>             Describe table schema
+  \q                     Quit pgcli
+  \?                     Show all special commands
 
 
 ================================================================================
