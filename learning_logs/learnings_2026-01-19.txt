@@ -261,6 +261,101 @@ de-zoomcamp/
 
 
 ================================================================================
+                   TOPIC 6: CLICK - COMMAND LINE INTERFACE
+================================================================================
+
+Click is a Python package for creating command-line interfaces with minimal code.
+It uses decorators to define commands and options.
+
+--------------------------------------------------------------------------------
+CONVERTING SCRIPT TO CLI WITH CLICK
+--------------------------------------------------------------------------------
+
+Before (hardcoded values):
+    def run():
+        pg_user = "root"
+        pg_password = "root"
+        year = 2021
+        month = 1
+        ...
+
+After (CLI with Click):
+    @click.command()
+    @click.option('--user', default='root', help='PostgreSQL username')
+    @click.option('--password', default='root', help='PostgreSQL password')
+    @click.option('--year', default=2021, type=int, help='Year of data')
+    @click.option('--month', default=1, type=int, help='Month (1-12)')
+    def main(user, password, year, month):
+        ...
+
+--------------------------------------------------------------------------------
+CLICK DECORATORS
+--------------------------------------------------------------------------------
+
+@click.command()
+  - Marks the function as a CLI command
+
+@click.option('--name', default=value, type=int, help='description')
+  - Defines a command-line option with:
+    - --name: the flag name
+    - default: default value if not provided
+    - type: data type (int, str, float, etc.)
+    - help: description shown in --help
+
+--------------------------------------------------------------------------------
+USAGE EXAMPLES
+--------------------------------------------------------------------------------
+
+# Run with defaults
+python ingest_data.py
+
+# Override specific options
+python ingest_data.py --year 2022 --month 6
+
+# See all available options
+python ingest_data.py --help
+
+
+================================================================================
+                    TOPIC 7: DATA INGESTION TO POSTGRESQL
+================================================================================
+
+Ingested NYC Yellow Taxi data into PostgreSQL using pandas and SQLAlchemy.
+
+--------------------------------------------------------------------------------
+INGEST SCRIPT FEATURES
+--------------------------------------------------------------------------------
+
+1. Downloads CSV data from GitHub releases
+2. Reads in chunks (100,000 rows) to avoid memory issues
+3. Uses proper data types for each column
+4. Shows progress with tqdm progress bar
+5. Supports CLI arguments via Click
+
+--------------------------------------------------------------------------------
+KEY CODE PATTERNS
+--------------------------------------------------------------------------------
+
+# Chunked reading for large files
+df_iter = pd.read_csv(url, iterator=True, chunksize=100000)
+
+for df_chunk in tqdm(df_iter):
+    df_chunk.to_sql(name=table, con=engine, if_exists='append')
+
+# SQLAlchemy connection string
+engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{db}")
+
+--------------------------------------------------------------------------------
+VERIFYING DATA WITH PGCLI
+--------------------------------------------------------------------------------
+
+Command: uv run pgcli -h localhost -u root -p 5432 -d ny_taxi
+
+SQL Query: SELECT count(1) FROM yellow_taxi_data_2021_01;
+Result:    1,369,765 rows ingested successfully
+
+
+================================================================================
                               COMMANDS CHEATSHEET
 ================================================================================
 
