@@ -310,6 +310,29 @@ def main(user, password, host, port, db, table, year, month, chunksize):
     # ... implementation
 
 --------------------------------------------------------------------------------
+CLI ARGUMENTS EXPLAINED
+--------------------------------------------------------------------------------
+
+| Argument    | Type   | Default        | Description                           |
+|-------------|--------|----------------|---------------------------------------|
+| --user      | string | root           | PostgreSQL username for auth          |
+| --password  | string | root           | PostgreSQL password for auth          |
+| --host      | string | localhost      | Database server hostname/IP           |
+| --port      | string | 5432           | Database server port number           |
+| --db        | string | ny_taxi        | Target database name                  |
+| --table     | string | yellow_taxi_.. | Table to insert data into             |
+| --year      | int    | 2021           | Year of NYC taxi data to download     |
+| --month     | int    | 1              | Month (1-12) of data to download      |
+| --chunksize | int    | 100000         | Rows per batch insert (memory tuning) |
+
+How Click decorators work:
+- @click.command()     → Marks function as a CLI command
+- @click.option()      → Defines a named option (--flag value)
+- default=             → Value used if option not provided
+- type=int             → Validates and converts input to integer
+- help=                → Text shown in --help output
+
+--------------------------------------------------------------------------------
 RUNNING THE INGESTION SCRIPT
 --------------------------------------------------------------------------------
 
