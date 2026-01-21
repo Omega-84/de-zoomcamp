@@ -1,0 +1,227 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 21, 2026
+================================================================================
+
+SESSION DURATION: Day 3 of the bootcamp
+
+================================================================================
+                     TOPIC 1: DOCKER COMPOSE FOR MULTI-CONTAINER APPS
+================================================================================
+
+Docker Compose allows defining and running multi-container applications with
+a single YAML file, instead of running multiple `docker run` commands.
+
+--------------------------------------------------------------------------------
+DOCKER-COMPOSE.YAML STRUCTURE
+--------------------------------------------------------------------------------
+
+services:
+  pgdatabase:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: ny_taxi
+    volumes:
+      - ny_taxi_postgres_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8085:80"
+
+volumes:
+  ny_taxi_postgres_data:
+  pgadmin_data:
+
+--------------------------------------------------------------------------------
+DOCKER COMPOSE KEY CONCEPTS
+--------------------------------------------------------------------------------
+
+| Section      | Purpose                                               |
+|--------------|-------------------------------------------------------|
+| services     | Define containers to run (like multiple docker run)   |
+| image        | Docker image to use                                   |
+| environment  | Environment variables (replaces -e flags)             |
+| volumes      | Mount points (replaces -v flags)                      |
+| ports        | Port mappings (replaces -p flags)                     |
+| networks     | Custom networks (optional, default created auto)      |
+
+--------------------------------------------------------------------------------
+ENVIRONMENT VARIABLE SYNTAX
+--------------------------------------------------------------------------------
+
+Two valid formats in docker-compose:
+
+# Map syntax (recommended)
+environment:
+  POSTGRES_USER: root
+  POSTGRES_PASSWORD: root
+
+# List syntax
+environment:
+  - POSTGRES_USER=root
+  - POSTGRES_PASSWORD=root
+
+WRONG (mixing both):
+environment:
+  - POSTGRES_USER: root    # ❌ Invalid - don't mix - and :
+
+--------------------------------------------------------------------------------
+DOCKER COMPOSE COMMANDS
+--------------------------------------------------------------------------------
+
+| Command                    | Purpose                                      |
+|--------------------------- |----------------------------------------------|
+| docker compose up          | Start all services (foreground)              |
+| docker compose up -d       | Start all services (detached/background)     |
+| docker compose down        | Stop and remove containers                   |
+| docker compose ps          | List running compose services                |
+| docker compose logs        | View logs from all services                  |
+| docker compose config      | Validate and display the composed config     |
+| docker compose build       | Build images defined in compose file         |
+
+
+================================================================================
+                     TOPIC 2: DOCKERFILE FOR DATA INGESTION
+================================================================================
+
+Updated Dockerfile to containerize the data ingestion script with Click CLI.
+
+--------------------------------------------------------------------------------
+FINAL DOCKERFILE
+--------------------------------------------------------------------------------
+
+FROM python:3.13.11-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+
+WORKDIR /code
+
+ENV PATH="/code/.venv/bin:$PATH"
+
+COPY pyproject.toml uv.lock .python-version ./
+
+RUN uv sync --locked
+
+COPY ingest_data.py .
+
+ENTRYPOINT ["python", "ingest_data.py"]
+
+--------------------------------------------------------------------------------
+RUNNING THE CONTAINERIZED INGESTION
+--------------------------------------------------------------------------------
+
+# Build the image
+docker build -t taxi_ingest:v001 .
+
+# Run with CLI arguments
+docker run -it --rm taxi_ingest:v001 \
+    --user=root \
+    --password=root \
+    --host=pgdatabase \
+    --port=5432 \
+    --db=ny_taxi \
+    --table=yellow_taxi_trips
+
+Note: When connecting to postgres from another container, use the service
+name (pgdatabase) as the host, not localhost.
+
+
+================================================================================
+                     TOPIC 3: GIT REPOSITORY REPAIR
+================================================================================
+
+Encountered and fixed corrupted git objects.
+
+--------------------------------------------------------------------------------
+PROBLEM
+--------------------------------------------------------------------------------
+
+error: object file .git/objects/b6/c1376e12... is empty
+fatal: bad object HEAD
+
+This happens due to:
+- Sudden system shutdown
+- Disk issues
+- Interrupted git operations
+
+--------------------------------------------------------------------------------
+SOLUTION
+--------------------------------------------------------------------------------
+
+# Step 1: Identify corrupted objects
+git fsck --full
+
+# Step 2: Remove empty/corrupted object files
+rm -f .git/objects/b6/c1376e12e1f81b6bed563f191eee6be5696da6
+
+# Step 3: Fetch fresh objects from remote
+git fetch origin
+
+# Step 4: Reset to remote state
+git reset --hard origin/main
+
+
+================================================================================
+                     TOPIC 4: DOCKER CLEANUP COMMANDS
+================================================================================
+
+Managing Docker resources to save disk space.
+
+--------------------------------------------------------------------------------
+VIEWING RESOURCES
+--------------------------------------------------------------------------------
+
+| Command              | Purpose                              |
+|----------------------|--------------------------------------|
+| docker images        | List all images                      |
+| docker ps -a         | List all containers (including stopped) |
+| docker volume ls     | List all volumes                     |
+| docker network ls    | List all networks                    |
+
+--------------------------------------------------------------------------------
+CLEANUP COMMANDS
+--------------------------------------------------------------------------------
+
+| Command                      | Purpose                             |
+|------------------------------|-------------------------------------|
+| docker rmi <image>           | Remove a specific image             |
+| docker rm <container>        | Remove a specific container         |
+| docker volume rm <vol>       | Remove a specific volume            |
+| docker system prune          | Remove unused data                  |
+| docker system prune -a       | Remove ALL unused (including images)|
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Docker Compose simplifies multi-container orchestration
+2. Environment variables in compose use key: value format (not - key: value)
+3. Services in the same compose file can communicate via service names
+4. Docker Compose auto-creates a default network for services
+5. Named volumes in compose are prefixed with project name (pipeline_)
+6. git fsck helps diagnose repository corruption
+7. Remote fetch + reset can repair corrupted local repositories
+
+
+================================================================================
+                            FILES MODIFIED TODAY
+================================================================================
+
+1. pipeline/Dockerfile - Updated to use ingest_data.py
+2. pipeline/docker-compose.yaml - Created for PostgreSQL + pgAdmin
+
+
+================================================================================
+                               END OF LOG
+================================================================================
