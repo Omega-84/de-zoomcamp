@@ -1,6 +1,6 @@
 ================================================================================
                     DATA ENGINEERING ZOOMCAMP - LEARNING LOG
-                              Date: January 21, 2026
+                              Date: January 20, 2026
 ================================================================================
 
 SESSION DURATION: Day 3 of the bootcamp
