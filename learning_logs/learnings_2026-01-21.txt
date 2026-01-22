@@ -1,0 +1,148 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 21, 2026
+================================================================================
+
+SESSION DURATION: Day 4 of the bootcamp
+
+================================================================================
+                     TOPIC 1: GOOGLE CLOUD PLATFORM SETUP
+================================================================================
+
+Setting up GCP for the Data Engineering Zoomcamp infrastructure.
+
+--------------------------------------------------------------------------------
+INSTALLING GOOGLE CLOUD SDK
+--------------------------------------------------------------------------------
+
+# Step 1: Check system architecture
+uname -s                    # Returns: Linux
+uname -a                    # Full system info
+
+# Step 2: Download gcloud CLI for Linux
+curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz
+
+# Step 3: Extract the archive
+tar -xf google-cloud-cli-linux-x86_64.tar.gz
+
+# Step 4: Run the installer
+./google-cloud-sdk/install.sh
+
+# Step 5: Initialize gcloud (opens browser for auth)
+gcloud init
+
+--------------------------------------------------------------------------------
+GCLOUD CLI COMMANDS
+--------------------------------------------------------------------------------
+
+| Command                              | Purpose                              |
+|--------------------------------------|--------------------------------------|
+| gcloud init                          | Initialize and configure gcloud      |
+| gcloud auth list                     | List authenticated accounts          |
+| gcloud auth login                    | Login with Google account            |
+| gcloud auth application-default login| Set up application default creds     |
+| gcloud config list                   | Show current configuration           |
+| gcloud projects list                 | List all accessible projects         |
+| gcloud config set project <ID>       | Set default project                  |
+
+
+================================================================================
+                     TOPIC 2: SERVICE ACCOUNT SETUP
+================================================================================
+
+Service accounts are used for programmatic access to GCP resources.
+
+--------------------------------------------------------------------------------
+CREATING SERVICE ACCOUNT (via GCP Console)
+--------------------------------------------------------------------------------
+
+1. Go to: IAM & Admin → Service Accounts
+2. Click "Create Service Account"
+3. Name: de-zoomcamp-user (or similar)
+4. Grant roles:
+   - BigQuery Admin
+   - Storage Admin
+   - Storage Object Admin
+   - Compute Admin (if using VMs)
+5. Create and download JSON key
+
+--------------------------------------------------------------------------------
+CONFIGURING CREDENTIALS
+--------------------------------------------------------------------------------
+
+# Set environment variable for current session
+export GOOGLE_APPLICATION_CREDENTIALS="de-zoomcamp-485104-fffaae1b79e8.json"
+
+# Make permanent (add to .bashrc)
+echo 'export GOOGLE_APPLICATION_CREDENTIALS="/home/nayya/de-zoomcamp/de-zoomcamp-485104-fffaae1b79e8.json"' >> ~/.bashrc
+
+# Verify it's set
+echo $GOOGLE_APPLICATION_CREDENTIALS
+
+--------------------------------------------------------------------------------
+AUTHENTICATION METHODS
+--------------------------------------------------------------------------------
+
+| Method                          | Use Case                                |
+|---------------------------------|-----------------------------------------|
+| gcloud auth login               | Interactive CLI use                     |
+| gcloud auth application-default | Local development with ADC              |
+| Service Account JSON key        | Production apps, Docker, CI/CD          |
+| Workload Identity               | GKE pods accessing GCP services         |
+
+
+================================================================================
+                     TOPIC 3: GITIGNORE FOR GCP
+================================================================================
+
+Added to .gitignore to protect sensitive files:
+
+# Google Cloud
+*.json                    # Service account keys (NEVER commit!)
+google-cloud-sdk/         # SDK installation directory
+*.tar.gz                  # Downloaded archives
+
+IMPORTANT: Service account JSON keys contain private keys.
+           If committed to git, immediately revoke and recreate!
+
+
+================================================================================
+                     TOPIC 4: NEXT STEPS (TERRAFORM)
+================================================================================
+
+Tomorrow's focus: Infrastructure as Code with Terraform
+
+What Terraform will provision:
+- Google Cloud Storage bucket (data lake)
+- BigQuery dataset
+- (Optional) Compute Engine VM
+
+Files to create:
+- main.tf          # Main infrastructure definition
+- variables.tf     # Input variables
+- terraform.tfvars # Variable values (gitignore this too!)
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. gcloud SDK is the CLI tool for interacting with GCP
+2. Service accounts provide programmatic access to GCP resources
+3. GOOGLE_APPLICATION_CREDENTIALS env var points to the JSON key
+4. NEVER commit service account keys to git
+5. Add *.json to .gitignore for GCP projects
+6. gcloud init configures default project and region
+
+
+================================================================================
+                            FILES MODIFIED TODAY
+================================================================================
+
+1. .gitignore - Added GCP-related exclusions
+2. ~/.bashrc - Added GOOGLE_APPLICATION_CREDENTIALS export
+
+
+================================================================================
+                               END OF LOG
+================================================================================

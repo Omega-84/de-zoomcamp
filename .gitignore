@@ -2,3 +2,7 @@ dez/
 .venv/
 *.parquet
 *.ipynb
+# Google Cloud
+*.json
+google-cloud-sdk/
+*.tar.gz
