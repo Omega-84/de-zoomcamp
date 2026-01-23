@@ -1,0 +1,199 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 22, 2026
+================================================================================
+
+SESSION DURATION: Day 5 of the bootcamp
+
+================================================================================
+                     TOPIC 1: TERRAFORM INSTALLATION
+================================================================================
+
+Terraform is an Infrastructure as Code (IaC) tool that allows you to define
+and provision cloud infrastructure using declarative configuration files.
+
+--------------------------------------------------------------------------------
+INSTALLING TERRAFORM
+--------------------------------------------------------------------------------
+
+# Option 1: Using snap (used)
+sudo snap install terraform --classic
+
+# Option 2: From HashiCorp APT repo
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update && sudo apt install terraform
+
+# Verify installation
+terraform --version
+
+
+================================================================================
+                     TOPIC 2: TERRAFORM BASICS
+================================================================================
+
+--------------------------------------------------------------------------------
+TERRAFORM FILE STRUCTURE
+--------------------------------------------------------------------------------
+
+terraform/
+├── main.tf              # Main infrastructure definition
+├── variables.tf         # Input variable definitions (optional)
+├── terraform.tfvars     # Variable values (gitignore this!)
+├── .terraform/          # Provider plugins (gitignore)
+├── .terraform.lock.hcl  # Dependency lock file
+├── terraform.tfstate    # State file (gitignore - sensitive!)
+└── keys/                # Credentials (gitignore!)
+
+--------------------------------------------------------------------------------
+MAIN.TF STRUCTURE
+--------------------------------------------------------------------------------
+
+# 1. Terraform block - specify required providers
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "7.16.0"
+    }
+  }
+}
+
+# 2. Provider block - configure the provider
+provider "google" {
+  project = "de-zoomcamp-485104"
+  region  = "us-central1"
+}
+
+# 3. Resource blocks - define infrastructure
+resource "google_storage_bucket" "demo-bucket" {
+  name     = "de-zoomcamp-485104-bucket"
+  location = "US"
+
+  lifecycle_rule {
+    condition {
+      age = 1
+    }
+    action {
+      type = "AbortIncompleteMultipartUpload"
+    }
+  }
+}
+
+
+================================================================================
+                     TOPIC 3: TERRAFORM COMMANDS
+================================================================================
+
+| Command              | Purpose                                          |
+|----------------------|--------------------------------------------------|
+| terraform init       | Initialize working dir, download providers       |
+| terraform plan       | Preview changes without applying                 |
+| terraform apply      | Apply changes to create/modify infrastructure    |
+| terraform destroy    | Destroy all managed infrastructure               |
+| terraform fmt        | Format .tf files to canonical style              |
+| terraform validate   | Check configuration for syntax errors            |
+| terraform show       | Show current state or plan                       |
+| terraform state list | List resources in state file                     |
+
+--------------------------------------------------------------------------------
+TERRAFORM WORKFLOW
+--------------------------------------------------------------------------------
+
+1. Write configuration (.tf files)
+2. terraform init      → Initialize and download providers
+3. terraform plan      → Preview what will be created/changed
+4. terraform apply     → Create the infrastructure (type 'yes' to confirm)
+5. terraform destroy   → Tear down when done (type 'yes' to confirm)
+
+
+================================================================================
+                     TOPIC 4: GOOGLE CLOUD STORAGE BUCKET
+================================================================================
+
+Created a GCS bucket using Terraform:
+
+resource "google_storage_bucket" "demo-bucket" {
+  name          = "de-zoomcamp-485104-bucket"
+  location      = "US"
+
+  lifecycle_rule {
+    condition {
+      age = 1        # Days after which rule applies
+    }
+    action {
+      type = "AbortIncompleteMultipartUpload"
+    }
+  }
+}
+
+Lifecycle Rule Explained:
+- Automatically aborts incomplete multipart uploads after 1 day
+- Helps prevent orphaned upload chunks from consuming storage
+
+Result from terraform apply:
+- Created: gs://de-zoomcamp-485104-bucket
+
+Result from terraform destroy:
+- Destroyed the bucket and cleaned up state
+
+
+================================================================================
+                     TOPIC 5: TERRAFORM STATE
+================================================================================
+
+Terraform tracks infrastructure in a STATE FILE (terraform.tfstate).
+
+Why state is important:
+- Maps real resources to your configuration
+- Tracks metadata and dependencies
+- Enables plan/apply to know what changes are needed
+
+State file security:
+- Contains sensitive data (resource IDs, sometimes secrets)
+- NEVER commit to git!
+- For teams: use remote state (GCS, S3, Terraform Cloud)
+
+
+================================================================================
+                     TOPIC 6: GITIGNORE FOR TERRAFORM
+================================================================================
+
+Added to .gitignore:
+
+# Terraform
+.terraform/              # Provider plugins directory
+*.tfstate                # State files (sensitive!)
+*.tfstate.*              # State backups
+*.tfvars                 # Variable files (may have secrets)
+crash.log                # Crash logs
+override.tf              # Override files
+.terraform.lock.hcl      # Lock file (optional to track)
+terraform/keys/          # Credential keys
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Terraform uses declarative config to define infrastructure
+2. terraform init downloads provider plugins
+3. terraform plan shows what will change before applying
+4. terraform apply creates/modifies resources (requires 'yes')
+5. terraform destroy tears down all managed infrastructure
+6. State files track real-world resources - never commit them!
+7. GCS bucket names must be globally unique
+
+
+================================================================================
+                            FILES CREATED TODAY
+================================================================================
+
+1. terraform/main.tf - Terraform configuration for GCP
+2. terraform/keys/ - Directory for service account key
+3. .gitignore - Updated with Terraform exclusions
+
+
+================================================================================
+                               END OF LOG
+================================================================================

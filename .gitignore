@@ -2,7 +2,21 @@ dez/
 .venv/
 *.parquet
 *.ipynb
+
 # Google Cloud
 *.json
 google-cloud-sdk/
 *.tar.gz
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+terraform/keys/
