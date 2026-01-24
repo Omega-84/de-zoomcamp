@@ -2,6 +2,7 @@ dez/
 .venv/
 *.parquet
 *.ipynb
+.ipynb_checkpoints/
 
 # Google Cloud
 *.json
@@ -20,3 +21,6 @@ override.tf.json
 *_override.tf.json
 .terraform.lock.hcl
 terraform/keys/
+
+# Data files (large)
+taxi_zone_lookup.csv

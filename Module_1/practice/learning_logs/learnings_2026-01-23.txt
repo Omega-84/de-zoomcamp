@@ -1,0 +1,199 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 23, 2026
+================================================================================
+
+SESSION DURATION: Day 6 of the bootcamp (Homework 1)
+
+================================================================================
+                     TOPIC 1: HOMEWORK 1 - GREEN TAXI DATA INGESTION
+================================================================================
+
+Built a complete data pipeline to ingest NYC Green Taxi trip data into PostgreSQL.
+
+--------------------------------------------------------------------------------
+DATA FILES USED
+--------------------------------------------------------------------------------
+
+1. green_tripdata_2025-11.parquet - Green taxi trip records (46,912 rows)
+2. taxi_zone_lookup.csv - Location ID to Zone/Borough mapping
+
+--------------------------------------------------------------------------------
+INGEST_TO_DB.PY - CLICK CLI SCRIPT
+--------------------------------------------------------------------------------
+
+Key components:
+
+1. Date column handling for Parquet:
+   date_col_trip = ["lpep_pickup_datetime", "lpep_dropoff_datetime"]
+   
+   for i in date_col_trip:
+       trip[i] = pd.to_datetime(trip[i], errors='coerce')
+
+2. DataFrame to iterator (chunking without iterator=True):
+   for start in range(0, len(trip), chunksize):
+       df_chunk = trip.iloc[start:start + chunksize]
+       # process chunk...
+
+3. Click CLI options:
+   --user, --password, --host, --port, --db, --table, --chunksize
+
+--------------------------------------------------------------------------------
+READING PARQUET VS CSV
+--------------------------------------------------------------------------------
+
+| Feature          | CSV                      | Parquet                    |
+|------------------|--------------------------|----------------------------|
+| dtype parameter  | Required                 | Not needed (preserved)     |
+| parse_dates      | Required                 | Not needed (preserved)     |
+| iterator/chunk   | Built-in support         | Use iloc slicing           |
+| File size        | Larger                   | Compressed, smaller        |
+
+
+================================================================================
+                     TOPIC 2: DOCKER SETUP FOR HOMEWORK
+================================================================================
+
+--------------------------------------------------------------------------------
+DOCKER-COMPOSE.YAML
+--------------------------------------------------------------------------------
+
+services:
+  pg-data:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: ny_taxi_db
+    volumes:
+      - ny_taxi_db_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    networks:
+      - ny_taxi_db_network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8085:80"
+    networks:
+      - ny_taxi_db_network
+
+--------------------------------------------------------------------------------
+DOCKERFILE FOR INGESTION
+--------------------------------------------------------------------------------
+
+FROM python:3.13.11-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+WORKDIR /code
+ENV PATH="/code/.venv/bin:$PATH"
+COPY pyproject.toml uv.lock .python-version green_tripdata_2025-11.parquet taxi_zone_lookup.csv ./
+RUN uv sync --locked
+COPY ingest_to_db.py .
+ENTRYPOINT ["python", "ingest_to_db.py"]
+
+
+================================================================================
+                     TOPIC 3: RUNNING THE PIPELINE
+================================================================================
+
+--------------------------------------------------------------------------------
+COMMANDS EXECUTED
+--------------------------------------------------------------------------------
+
+# Start PostgreSQL and pgAdmin
+docker compose up -d
+
+# Build the ingestion image
+docker build -t ingest_pipeline:v01 .
+
+# Run ingestion (note: --network before image name!)
+docker run -it --rm \
+    --network=homework_1_ny_taxi_db_network \
+    ingest_pipeline:v01 \
+    --user=root \
+    --password=root \
+    --host=pg-data \
+    --port=5432 \
+    --db=ny_taxi_db \
+    --table=green_taxi_trip_data
+
+--------------------------------------------------------------------------------
+RESULTS
+--------------------------------------------------------------------------------
+
+✅ Successfully ingested lookup data into 'taxi_zone_lookup'
+✅ Successfully ingested trip data 46,912 rows into 'green_taxi_trip_data'
+
+--------------------------------------------------------------------------------
+DOCKER RUN SYNTAX REMINDER
+--------------------------------------------------------------------------------
+
+docker run [DOCKER_FLAGS] IMAGE_NAME [SCRIPT_ARGS]
+            ↑              ↑          ↑
+            --network      image      --user, --host, etc
+            --rm, -it      name       (passed to Python)
+            goes HERE
+
+
+================================================================================
+                     TOPIC 4: PGADMIN SERVER SETUP
+================================================================================
+
+To connect pgAdmin (localhost:8085) to PostgreSQL:
+
+| Field              | Value              |
+|--------------------|--------------------|
+| Host name/address  | pg-data            |
+| Port               | 5432               |
+| Database           | ny_taxi_db         |
+| Username           | root               |
+| Password           | root               |
+
+Note: Use service name (pg-data) not localhost, since pgAdmin is in Docker.
+
+
+================================================================================
+                     TOPIC 5: VIRTUAL ENVIRONMENT FIX
+================================================================================
+
+After moving directories, old venv paths break. Fix:
+
+# Problem: shebang points to old path
+#!/home/nayya/de-zoomcamp/pipeline/.venv/bin/python3  # OLD
+
+# Solution: Recreate venv
+rm -rf .venv && uv sync
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Parquet preserves dtypes - no need for dtype/parse_dates params
+2. For DataFrame chunking without iterator: use iloc slicing
+3. Docker --network flag must come BEFORE image name
+4. In Docker Compose, use service names for inter-container networking
+5. After moving directories, recreate .venv to fix path issues
+6. pd.to_datetime() with errors='coerce' handles bad dates gracefully
+
+
+================================================================================
+                            FILES CREATED TODAY
+================================================================================
+
+Module_1/Homework_1/
+├── Dockerfile
+├── docker-compose.yaml
+├── ingest_to_db.py
+├── pyproject.toml
+├── uv.lock
+└── .python-version
+
+
+================================================================================
+                               END OF LOG
+================================================================================
