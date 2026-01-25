@@ -1,0 +1,174 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 24, 2026
+================================================================================
+
+SESSION DURATION: Day 7 of the bootcamp (Homework 1 Completion)
+
+================================================================================
+                     TOPIC 1: TERRAFORM VARIABLES
+================================================================================
+
+Learned to use variables in Terraform for cleaner, reusable configurations.
+
+--------------------------------------------------------------------------------
+VARIABLES.TF - DEFINING VARIABLES
+--------------------------------------------------------------------------------
+
+variable "credentials" {
+  description = "My Credentials"
+  default     = "./keys/my-creds.json"
+}
+
+variable "project" {
+  description = "Project"
+  default     = "de-zoomcamp-485104"
+}
+
+variable "region" {
+  description = "Region"
+  default     = "us-central1"
+}
+
+variable "location" {
+  description = "Project Location"
+  default     = "US"
+}
+
+variable "bq_dataset_name" {
+  description = "My BigQuery Dataset Name"
+  default     = "demo_dataset"
+}
+
+variable "gcs_bucket_name" {
+  description = "My Storage Bucket Name"
+  default     = "de-zoomcamp-485104-bucket"
+}
+
+--------------------------------------------------------------------------------
+MAIN.TF - USING VARIABLES
+--------------------------------------------------------------------------------
+
+provider "google" {
+  credentials = file(var.credentials)   # Reference with var.
+  project     = var.project
+  region      = var.region
+}
+
+resource "google_storage_bucket" "demo-bucket" {
+  name     = var.gcs_bucket_name
+  location = var.location
+}
+
+resource "google_bigquery_dataset" "demo_dataset" {
+  dataset_id = var.bq_dataset_name
+  location   = var.location
+}
+
+--------------------------------------------------------------------------------
+VARIABLE SYNTAX
+--------------------------------------------------------------------------------
+
+| Component        | Example                                    |
+|------------------|-------------------------------------------|
+| Define variable  | variable "name" { default = "value" }     |
+| Use variable     | var.name                                   |
+| With file()      | file(var.credentials)                      |
+| Override via CLI | terraform apply -var="project=my-proj"     |
+
+
+================================================================================
+                     TOPIC 2: TERRAFORM AUTHENTICATION
+================================================================================
+
+--------------------------------------------------------------------------------
+AUTHENTICATION PRIORITY ORDER
+--------------------------------------------------------------------------------
+
+1. credentials = file("key.json") in provider block
+2. GOOGLE_APPLICATION_CREDENTIALS environment variable
+3. gcloud auth application-default login (ADC)
+4. gcloud auth login (user credentials)
+5. Compute Engine service account (when on GCE/GKE)
+
+--------------------------------------------------------------------------------
+USING SERVICE ACCOUNT
+--------------------------------------------------------------------------------
+
+provider "google" {
+  credentials = file(var.credentials)  # Points to JSON key
+  project     = var.project
+  region      = var.region
+}
+
+No need for gcloud auth login when using service account JSON!
+
+
+================================================================================
+                     TOPIC 3: SQL QUERIES WITH JOINS
+================================================================================
+
+--------------------------------------------------------------------------------
+POSTGRESQL CASE SENSITIVITY
+--------------------------------------------------------------------------------
+
+PostgreSQL lowercases unquoted identifiers:
+- a.PULocationID → becomes a.pulocationid (NOT FOUND!)
+- a."PULocationID" → correctly references mixed-case column
+
+Rule: Always quote column names with uppercase letters.
+
+--------------------------------------------------------------------------------
+DOUBLE JOIN FOR LOOKUP TABLES
+--------------------------------------------------------------------------------
+
+SELECT dropoff."Zone"
+FROM green_taxi_trip_data AS a
+INNER JOIN taxi_zone_lookup AS pickup    -- First join for pickup zone
+  ON a."PULocationID" = pickup."LocationID"
+INNER JOIN taxi_zone_lookup AS dropoff   -- Second join for dropoff zone
+  ON a."DOLocationID" = dropoff."LocationID"
+WHERE pickup."Zone" = 'East Harlem North';
+
+
+================================================================================
+                     TOPIC 4: README WITH BADGES
+================================================================================
+
+Added shields.io badges to README for professional look:
+
+![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Python](https://img.shields.io/badge/Python_3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)
+
+Badge format:
+https://img.shields.io/badge/LABEL-COLOR?style=for-the-badge&logo=LOGO&logoColor=white
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Terraform variables make configs reusable and maintainable
+2. Use var.name syntax to reference variables
+3. Service account JSON is preferred for CI/CD (no interactive login)
+4. PostgreSQL requires quotes for mixed-case column names
+5. Use double JOINs to lookup both pickup and dropoff zones
+6. shields.io badges add professional polish to READMEs
+
+
+================================================================================
+                            FILES CREATED/MODIFIED
+================================================================================
+
+Module_1/Homework_1/
+├── README.md         # Formatted with badges and answers
+├── terraform/
+│   ├── main.tf       # Uses variables
+│   └── variables.tf  # Variable definitions
+
+
+================================================================================
+                               END OF LOG
+================================================================================

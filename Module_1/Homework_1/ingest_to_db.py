@@ -29,7 +29,7 @@ dtype_trip = {'VendorID': 'Int64',
  'cbd_congestion_fee': 'float64'}
 
 dtype_lookup = {
-    "LocationID" : "int32",
+    "LocationID" : "Int64",
     "Borough" : "str",
     "Zone" : "str",
     "service_zone" : "str"
