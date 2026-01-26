@@ -1,0 +1,148 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 25-26, 2026
+================================================================================
+
+SESSION DURATION: Days 8-9 (Module 2 Start)
+
+================================================================================
+                     TOPIC 1: KESTRA - WORKFLOW ORCHESTRATION
+================================================================================
+
+Kestra is an open-source workflow orchestration platform for building
+data pipelines, ETL processes, and automation workflows.
+
+--------------------------------------------------------------------------------
+DOCKER COMPOSE SETUP
+--------------------------------------------------------------------------------
+
+services:
+  # NYC Taxi PostgreSQL database
+  pgdatabase:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: ny_taxi
+    ports:
+      - "5432:5432"
+    volumes:
+      - ny_taxi_postgres_data:/var/lib/postgresql
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=root
+    ports:
+      - "8085:80"
+
+  # Kestra's backend PostgreSQL
+  kestra_postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # Kestra orchestrator
+  kestra:
+    image: kestra/kestra:v1.1
+    user: "root"
+    command: server standalone
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      kestra_postgres:
+        condition: service_started
+
+--------------------------------------------------------------------------------
+KESTRA CREDENTIALS
+--------------------------------------------------------------------------------
+
+| Service     | URL                    | Username          | Password    |
+|-------------|------------------------|-------------------|-------------|
+| Kestra UI   | http://localhost:8080  | admin@kestra.io   | Admin1234   |
+| pgAdmin     | http://localhost:8085  | admin@admin.com   | root        |
+| PostgreSQL  | localhost:5432         | root              | root        |
+
+
+================================================================================
+                     TOPIC 2: DOCKER VOLUMES
+================================================================================
+
+Docker volumes persist data outside of container lifecycle.
+
+--------------------------------------------------------------------------------
+VOLUME COMMANDS
+--------------------------------------------------------------------------------
+
+| Command                          | Purpose                              |
+|----------------------------------|--------------------------------------|
+| docker volume ls                 | List all volumes                     |
+| docker volume inspect NAME       | Show volume details and mount path   |
+| docker volume rm NAME            | Remove a specific volume             |
+| docker volume prune              | Remove all unused volumes            |
+| docker system df -v              | Show disk usage by volumes           |
+
+--------------------------------------------------------------------------------
+ACCESSING VOLUME DATA
+--------------------------------------------------------------------------------
+
+# View volume mount location
+docker volume inspect VOLUME_NAME
+
+# Browse volume contents using alpine
+docker run -it --rm -v VOLUME_NAME:/data alpine ls -la /data
+
+# Interactive shell in volume
+docker run -it --rm -v VOLUME_NAME:/data alpine sh
+
+# Copy files from volume to host
+docker run --rm -v VOLUME_NAME:/data -v $(pwd):/backup alpine cp -r /data /backup/
+
+
+================================================================================
+                     TOPIC 3: KESTRA CONCEPTS
+================================================================================
+
+Key Concepts:
+- Flows: YAML-defined workflows
+- Tasks: Individual steps in a flow
+- Triggers: Events that start flows (schedule, webhook, etc.)
+- Namespaces: Organize flows into logical groups
+- Inputs/Outputs: Data passed between tasks
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Kestra is a modern workflow orchestration tool with YAML-based configs
+2. Docker Compose can run multiple services with health checks
+3. Docker volumes persist data beyond container lifecycle
+4. Use alpine container to browse volume contents without root
+5. Kestra uses PostgreSQL as its backend database
+
+
+================================================================================
+                            FILES CREATED
+================================================================================
+
+Module_2/
+└── practice/
+    ├── docker-compose.yaml    # Kestra + PostgreSQL + pgAdmin
+    └── learning_logs/
+        └── learnings_2026-01-25.txt
+
+
+================================================================================
+                               END OF LOG
+================================================================================
