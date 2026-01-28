@@ -66,10 +66,25 @@ Flows completed:
   ✅ 03_getting_started_data_pipeline
   ✅ 04_postgres_taxi (local DB)
   ✅ 05_postgres_taxi_scheduled
+  ✅ 06_gcp_setup (GCS/BigQuery integration)
+  ✅ 07_gcp_taxi_scheduled (cloud data pipeline)
 
-Next up:
-  ⏳ 06_gcp_setup (GCS/BigQuery integration)
-  ⏳ 07_gcp_taxi_scheduled (cloud data pipeline)
+--------------------------------------------------------------------------------
+FLOW 06: GCP SETUP
+--------------------------------------------------------------------------------
+- Configured GCP credentials in Kestra using secrets
+- {{ secret('GCP_SERVICE_ACCOUNT') }} for authentication
+- Tested GCS bucket access and BigQuery connectivity
+- Set up namespace-level plugin defaults for GCP
+
+--------------------------------------------------------------------------------
+FLOW 07: GCP TAXI SCHEDULED
+--------------------------------------------------------------------------------
+- Full cloud-based ETL pipeline for NYC taxi data
+- Downloads data → Uploads to GCS → Loads to BigQuery
+- Uses external tables or native BigQuery loading
+- Scheduled execution with backfill support
+- Production-ready cloud data pipeline
 
 
 ================================================================================
