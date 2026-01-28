@@ -1,0 +1,138 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 27, 2026
+================================================================================
+
+SESSION DURATION: Day 10 (Module 2: Workflow Orchestration - GCP Integration)
+
+================================================================================
+                     TOPIC 1: KESTRA GCP SECRETS MANAGEMENT
+================================================================================
+
+Today focused on integrating GCP credentials with Kestra for cloud workflows.
+
+--------------------------------------------------------------------------------
+BASE64 ENCODING FOR SECRETS
+--------------------------------------------------------------------------------
+
+Kestra requires secrets to be passed as environment variables in BASE64 format.
+This is a common pattern for securely passing multi-line secrets like JSON keys.
+
+# Encode service account JSON to base64 (single line, no newlines)
+cat service-account.json | base64 -w 0 > .env_encoded
+
+# Create the env file format
+echo "SECRET_GCP_SERVICE_ACCOUNT=$(cat service-account.json | base64 -w 0)" > .env_encoded
+
+--------------------------------------------------------------------------------
+DOCKER COMPOSE ENV_FILE
+--------------------------------------------------------------------------------
+
+Added env_file directive to Kestra service to load encoded secrets:
+
+services:
+  kestra:
+    env_file: .env_encoded    # <-- Loads SECRET_* vars into container
+    image: kestra/kestra:v1.1
+    ...
+
+Inside Kestra flows, secrets are referenced as:
+  - {{ secret('GCP_SERVICE_ACCOUNT') }}
+  - Kestra auto-strips "SECRET_" prefix from env var names
+
+--------------------------------------------------------------------------------
+SECURITY: GITIGNORE UPDATES
+--------------------------------------------------------------------------------
+
+Critical: Never commit sensitive files to version control!
+
+Added to .gitignore:
+  - .env           # Standard env files
+  - .env.*         # Any env file variants (.env.local, .env.prod)
+  - .env_encoded   # Base64 encoded secrets
+  - service-account.json  # GCP service account keys
+
+Already excluded:
+  - *.json         # All JSON files (catches most service accounts)
+
+
+================================================================================
+                     TOPIC 2: KESTRA FLOWS PROGRESS
+================================================================================
+
+Flows completed:
+  ✅ 01_hello_world
+  ✅ 02_python
+  ✅ 03_getting_started_data_pipeline
+  ✅ 04_postgres_taxi (local DB)
+  ✅ 05_postgres_taxi_scheduled
+
+Next up:
+  ⏳ 06_gcp_setup (GCS/BigQuery integration)
+  ⏳ 07_gcp_taxi_scheduled (cloud data pipeline)
+
+
+================================================================================
+                     TOPIC 3: CLEANUP OPERATIONS
+================================================================================
+
+Performed cleanup of development artifacts:
+
+# Stopped all containers
+docker compose down
+
+# Removed local flows directory (flows stored in Kestra DB)
+rm -r flows/
+
+# Removed helper script (no longer needed)
+rm convert_secrets.sh
+
+
+================================================================================
+                     TOPIC 4: GIT HYGIENE
+================================================================================
+
+Verified no secrets are being tracked:
+
+# Check what would be committed
+git status
+
+# Ensure .gitignore covers sensitive patterns
+.env*           → Excluded ✓
+*.json          → Excluded ✓
+service-account.json → Explicitly excluded ✓
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Kestra reads secrets from environment variables prefixed with SECRET_
+2. Base64 encoding is required for multi-line secrets (JSON, certificates)
+3. Use `base64 -w 0` to produce single-line output (no wrapping)
+4. env_file in Docker Compose loads variables into container
+5. {{ secret('NAME') }} accesses secrets in Kestra flows (without SECRET_ prefix)
+6. Always verify .gitignore before committing new file types
+7. Flows are persisted in Kestra's PostgreSQL, not local filesystem
+
+
+================================================================================
+                         FILES MODIFIED TODAY
+================================================================================
+
+Modified:
+  - docker-compose.yaml       (added env_file for secrets)
+  - .gitignore                (added .env* and service-account exclusions)
+
+Created:
+  - .env_encoded              (base64-encoded GCP credentials - NOT committed)
+  - learning_logs/learnings_2026-01-27.txt
+
+Deleted:
+  - flows/                    (moved to Kestra DB)
+  - convert_secrets.sh        (helper script, no longer needed)
+
+
+================================================================================
+                               END OF LOG
+================================================================================

@@ -6,8 +6,14 @@ dez/
 
 # Google Cloud
 *.json
+service-account.json
 google-cloud-sdk/
 *.tar.gz
+
+# Environment files (secrets)
+.env
+.env.*
+.env_encoded
 
 # Terraform
 .terraform/
