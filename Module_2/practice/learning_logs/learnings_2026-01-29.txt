@@ -1,0 +1,181 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: January 29, 2026
+================================================================================
+
+SESSION DURATION: Day 12 (Module 2: Workflow Orchestration - Complete!)
+
+================================================================================
+                     🎉 MODULE 2 COMPLETE - ALL 11 FLOWS DONE!
+================================================================================
+
+Flows completed:
+  ✅ 01_hello_world
+  ✅ 02_python
+  ✅ 03_getting_started_data_pipeline
+  ✅ 04_postgres_taxi (local DB)
+  ✅ 05_postgres_taxi_scheduled
+  ✅ 06_gcp_kv (Key-Value configuration)
+  ✅ 07_gcp_setup (GCS bucket + BigQuery dataset)
+  ✅ 08_gcp_taxi (GCP data pipeline)
+  ✅ 09_gcp_taxi_scheduled (scheduled GCP pipeline)
+  ✅ 10_chat_without_rag (AI/LLM demo)
+  ✅ 11_chat_with_rag (RAG pipeline)
+
+
+================================================================================
+                     TOPIC 1: GCP TAXI PIPELINE (FLOWS 08-09)
+================================================================================
+
+--------------------------------------------------------------------------------
+FLOW 08: GCP_TAXI (Full Cloud ETL Pipeline)
+--------------------------------------------------------------------------------
+Complete ETL pipeline: Extract → Upload to GCS → Load to BigQuery
+
+Pipeline steps:
+  1. set_label          - Add execution metadata
+  2. extract            - Download CSV from GitHub releases (wget + gunzip)
+  3. upload_to_gcs      - Upload to GCS bucket
+  4. if_yellow_taxi     - Conditional: Create yellow_tripdata table
+  5. if_green_taxi      - Conditional: Create green_tripdata table
+  6. load_to_bq         - Load CSV from GCS into BigQuery table (external)
+  7. purge_files        - Cleanup temporary files
+
+Variables:
+  file: "{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv"
+  gcs_file: "gs://{{kv('GCP_BUCKET_NAME')}}/{{vars.file}}"
+  table: "{{kv('GCP_DATASET')}}.{{inputs.taxi}}_tripdata_{{inputs.year}}_{{inputs.month}}"
+
+Key Tasks:
+  - io.kestra.plugin.gcp.gcs.Upload      (upload file to GCS)
+  - io.kestra.plugin.gcp.bigquery.Query  (create tables with schema)
+  - io.kestra.plugin.gcp.bigquery.Load   (load data from GCS)
+
+--------------------------------------------------------------------------------
+FLOW 09: GCP_TAXI_SCHEDULED
+--------------------------------------------------------------------------------
+Same as Flow 08 but with scheduled trigger and backfill support:
+
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 9 * * *"    # Daily at 9 AM UTC
+
+Backfill execution:
+  - Run historical data for date ranges
+  - Useful for loading multiple months of data
+  - Idempotent design with ifExists: SKIP
+
+
+================================================================================
+                     TOPIC 2: AI/RAG INTEGRATION (FLOWS 10-11)
+================================================================================
+
+--------------------------------------------------------------------------------
+FLOW 10: CHAT WITHOUT RAG
+--------------------------------------------------------------------------------
+Demonstrates LLM limitations without context retrieval:
+
+tasks:
+  - id: chat_without_rag
+    type: io.kestra.plugin.ai.completion.ChatCompletion
+    provider:
+      type: io.kestra.plugin.ai.provider.GoogleGemini
+      modelName: gemini-2.5-flash
+      apiKey: "{{ kv('GEMINI_API_KEY') }}"
+    messages:
+      - type: USER
+        content: "Which features were released in Kestra 1.1?"
+
+Result: LLM provides generic/outdated information without context.
+
+--------------------------------------------------------------------------------
+FLOW 11: CHAT WITH RAG (Retrieval Augmented Generation)
+--------------------------------------------------------------------------------
+Demonstrates RAG pattern for accurate, grounded responses:
+
+Pipeline:
+  1. ingest_release_notes  - Download & embed Kestra 1.1 release notes
+  2. chat_with_rag         - Query with retrieved context
+  3. log_results           - Display accurate response
+
+Key Tasks:
+  - io.kestra.plugin.ai.rag.IngestDocument
+    - Downloads documentation from URL
+    - Creates embeddings using gemini-embedding-001
+    - Stores in Kestra KV Store
+
+  - io.kestra.plugin.ai.rag.ChatCompletion
+    - Uses chatProvider (gemini-2.5-flash) for response
+    - Uses embeddingProvider for similarity search
+    - Retrieves relevant context before generating
+
+Result: LLM provides accurate, documentation-grounded responses.
+
+
+================================================================================
+                     TOPIC 3: GEMINI AI CONFIGURATION
+================================================================================
+
+Added AI configuration to docker-compose.yaml for Kestra:
+
+kestra:
+  server:
+    basicAuth:
+      username: "admin@kestra.io"
+      password: Admin1234
+  ai:
+    type: gemini
+    gemini:
+      model-name: gemini-2.5-flash
+      api-key: ${GEMINI_API_KEY}
+
+Environment variable GEMINI_API_KEY loaded from .env_encoded file.
+Store API key using: echo "GEMINI_API_KEY=your_key_here" >> .env_encoded
+
+
+================================================================================
+                     KEY CONCEPTS: RAG vs STANDARD LLM
+================================================================================
+
+| Aspect            | Without RAG              | With RAG                    |
+|-------------------|--------------------------|------------------------------|
+| Context           | Training data only       | Retrieved + Training data   |
+| Accuracy          | May be outdated/wrong    | Grounded in source docs     |
+| Hallucination     | Higher risk              | Lower risk                  |
+| Use Case          | General knowledge        | Domain-specific Q&A         |
+| Implementation    | Simple prompt            | Embed + Retrieve + Generate |
+
+RAG Pipeline:
+  1. Ingest documents → Create embeddings (vector representations)
+  2. Query arrives → Embed the query
+  3. Similarity search → Find relevant document chunks
+  4. Generate response → LLM uses retrieved context
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. GCP_TAXI flow demonstrates production-ready cloud ETL pattern
+2. Data flows: Extract → GCS → BigQuery (standard GCP data lake pattern)
+3. Conditional branching (If task) handles schema differences
+4. Schedule triggers + backfill enable historical data loading
+5. RAG pattern grounds LLM responses in actual documentation
+6. Kestra AI plugins support Gemini, OpenAI, and other providers
+7. Embeddings enable semantic similarity search for retrieval
+8. Module 2 complete! Ready for Module 2 Homework or Module 3
+
+
+================================================================================
+                         FILES MODIFIED TODAY
+================================================================================
+
+Modified:
+  - docker-compose.yaml   (added Gemini AI configuration)
+  - learning_logs/        (updated with flows 08-11 completion)
+
+
+================================================================================
+                               END OF LOG
+================================================================================
