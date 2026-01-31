@@ -5,6 +5,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![GCP](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
+![Kestra](https://img.shields.io/badge/Kestra-7B42BC?style=for-the-badge&logoColor=white)
 
 A comprehensive journey through the [Data Engineering Zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) by DataTalks.Club.
 
@@ -15,7 +16,7 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 | Module | Topic | Status |
 |--------|-------|--------|
 | 1 | [Containerization & Infrastructure as Code](#module-1-containerization--infrastructure-as-code) | ✅ Complete |
-| 2 | [Workflow Orchestration](#module-2-workflow-orchestration) | 🔄 In Progress |
+| 2 | [Workflow Orchestration](#module-2-workflow-orchestration) | ✅ Complete |
 | 3 | [Data Warehouse](#module-3-data-warehouse) | ⬜ Not Started |
 | 4 | [Analytics Engineering](#module-4-analytics-engineering) | ⬜ Not Started |
 | 5 | [Batch Processing](#module-5-batch-processing) | ⬜ Not Started |
@@ -47,11 +48,20 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ## Module 2: Workflow Orchestration
 
-**Topics to Cover:**
-- [ ] Introduction to workflow orchestration
-- [ ] Mage/Prefect/Airflow basics
-- [ ] Building ETL pipelines
-- [ ] Scheduling and monitoring
+**Topics Covered:**
+- [x] Introduction to Kestra workflow orchestration
+- [x] YAML-based flow definitions
+- [x] Building ETL pipelines (Extract → Transform → Load)
+- [x] PostgreSQL data ingestion with MERGE
+- [x] GCP integration (GCS + BigQuery)
+- [x] Scheduling and backfill
+- [x] AI/RAG integration with Gemini
+
+**Homework:** [View Homework 2](./Module_2/Homework_2/)
+
+**Key Files:**
+- [`docker-compose.yaml`](./Module_2/practice/docker-compose.yaml) - Kestra + PostgreSQL + pgAdmin
+- [`learning_logs/`](./Module_2/practice/learning_logs/) - Daily learning documentation
 
 ---
 
@@ -105,18 +115,23 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 ```
 de-zoomcamp/
 ├── Module_1/
-│   ├── Homework_1/          # Completed homework
+│   ├── Homework_1/          # Docker & SQL homework
 │   │   ├── Dockerfile
 │   │   ├── docker-compose.yaml
 │   │   ├── ingest_to_db.py
 │   │   ├── queries.sql
-│   │   ├── terraform/
 │   │   └── README.md
-│   └── practice/            # Practice exercises
+│   └── practice/
 │       ├── pipeline/
 │       ├── terraform/
 │       └── learning_logs/
-├── Module_2/                # Coming soon
+├── Module_2/
+│   ├── Homework_2/          # Kestra homework
+│   │   └── README.md
+│   └── practice/
+│       ├── docker-compose.yaml
+│       └── learning_logs/
+├── Module_3/                # Coming soon
 └── README.md
 ```
 
@@ -130,7 +145,7 @@ de-zoomcamp/
 | **Database** | PostgreSQL, BigQuery |
 | **Infrastructure** | Terraform, Google Cloud Platform |
 | **Programming** | Python, SQL |
-| **Orchestration** | Mage/Prefect/Airflow (upcoming) |
+| **Orchestration** | Kestra |
 | **Processing** | Apache Spark (upcoming) |
 | **Streaming** | Apache Kafka (upcoming) |
 
@@ -140,6 +155,7 @@ de-zoomcamp/
 
 Daily learning logs documenting concepts, commands, and key takeaways:
 
+**Module 1:**
 - [Day 1-2: Docker basics](./Module_1/practice/learning_logs/learnings_2026-01-18.txt)
 - [Day 3: PostgreSQL, pgcli, Dockerfile](./Module_1/practice/learning_logs/learnings_2026-01-19.txt)
 - [Day 4: Docker Compose](./Module_1/practice/learning_logs/learnings_2026-01-20.txt)
@@ -147,6 +163,11 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 - [Day 6: Terraform basics](./Module_1/practice/learning_logs/learnings_2026-01-22.txt)
 - [Day 7: Homework completion](./Module_1/practice/learning_logs/learnings_2026-01-23.txt)
 - [Day 8: Terraform variables](./Module_1/practice/learning_logs/learnings_2026-01-24.txt)
+
+**Module 2:**
+- [Day 9-10: Kestra setup & flows 01-07](./Module_2/practice/learning_logs/learnings_2026-01-25.txt)
+- [Day 11: GCP secrets & flows](./Module_2/practice/learning_logs/learnings_2026-01-27.txt)
+- [Day 12: GCP Taxi & AI/RAG (flows 08-11)](./Module_2/practice/learning_logs/learnings_2026-01-29.txt)
 
 ---
 
