@@ -1,0 +1,178 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: February 5, 2026
+================================================================================
+
+SESSION DURATION: Day 13 (Module 3: Data Warehouse - Setup)
+
+================================================================================
+                     TOPIC 1: PYTHON ENVIRONMENT SETUP
+================================================================================
+
+Set up Python virtual environment for GCP access at project root level.
+
+--------------------------------------------------------------------------------
+UV PACKAGE MANAGER
+--------------------------------------------------------------------------------
+
+# Initialize project
+uv init
+
+# Add GCP libraries
+uv add google-cloud-bigquery google-cloud-storage
+
+# Add Airflow and data processing
+uv add apache-airflow pyarrow pandas
+
+# Add Jupyter kernel support
+uv add ipykernel
+
+# Register kernel for notebooks
+uv run python -m ipykernel install --user --name=de-zoomcamp --display-name="DE Zoomcamp"
+
+Kernel installed at: /home/nayya/.local/share/jupyter/kernels/de-zoomcamp
+
+--------------------------------------------------------------------------------
+WHY PIP INSTALL FAILED
+--------------------------------------------------------------------------------
+
+Error: "externally-managed-environment"
+
+Modern Linux distributions (Debian/Ubuntu) implement PEP 668 to protect
+system Python from package conflicts. Solutions:
+  1. Use virtual environments (venv, uv, conda)
+  2. Use pipx for CLI tools
+  3. Never use --break-system-packages
+
+UV handles this automatically by creating .venv/ directory.
+
+
+================================================================================
+                     TOPIC 2: GCP PYTHON LIBRARIES
+================================================================================
+
+| Service | Library | Main Class |
+|---------|---------|------------|
+| BigQuery | google-cloud-bigquery | bigquery.Client() |
+| Cloud Storage | google-cloud-storage | storage.Client() |
+| Authentication | google-auth | service_account.Credentials |
+
+--------------------------------------------------------------------------------
+BIGQUERY EXAMPLE
+--------------------------------------------------------------------------------
+
+from google.cloud import bigquery
+
+client = bigquery.Client(project="de-zoomcamp-485104")
+
+# Run query
+query = "SELECT COUNT(*) FROM `dataset.table`"
+results = client.query(query).result()
+
+# List tables
+tables = client.list_tables("dataset")
+for table in tables:
+    print(table.table_id)
+
+# Delete table
+client.delete_table("dataset.table_name")
+
+--------------------------------------------------------------------------------
+CLOUD STORAGE EXAMPLE
+--------------------------------------------------------------------------------
+
+from google.cloud import storage
+
+client = storage.Client()
+bucket = client.bucket("bucket-name")
+
+# List blobs
+for blob in bucket.list_blobs(prefix="data/"):
+    print(blob.name)
+
+# Upload file
+blob = bucket.blob("path/file.parquet")
+blob.upload_from_filename("/local/path/file.parquet")
+
+# Download file
+blob.download_to_filename("/local/path/file.parquet")
+
+# Delete blob
+blob.delete()
+
+
+================================================================================
+                     TOPIC 3: DELETE BIGQUERY TABLES BY PATTERN
+================================================================================
+
+# Using bq CLI
+bq ls --format=json project:dataset | \
+  jq -r '.[].tableReference.tableId' | \
+  grep "pattern" | \
+  xargs -I {} bq rm -f -t project:dataset.{}
+
+# Using Python
+from google.cloud import bigquery
+client = bigquery.Client()
+
+for table in client.list_tables("dataset"):
+    if "2020" in table.table_id:
+        client.delete_table(f"dataset.{table.table_id}")
+
+# Using SQL (generate DROP statements)
+SELECT CONCAT('DROP TABLE `', table_catalog, '.', table_schema, '.', table_name, '`;')
+FROM `project.dataset.INFORMATION_SCHEMA.TABLES`
+WHERE table_name LIKE 'yellow_tripdata_2020%';
+
+
+================================================================================
+                     TOPIC 4: AIRFLOW ETL PATTERN
+================================================================================
+
+Planned pipeline: Download Parquet → Upload to GCS → Load to BigQuery
+
+Airflow DAG structure:
+  download_task >> upload_task >> load_task
+
+Key Airflow operators:
+  - PythonOperator: Custom Python functions
+  - GCSHook: Interact with Cloud Storage
+  - BigQueryInsertJobOperator: Load data to BigQuery
+
+Libraries installed:
+  - apache-airflow
+  - pyarrow (parquet support)
+  - pandas
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Use uv for Python package management (handles venv automatically)
+2. PEP 668 prevents direct pip install on system Python
+3. google-cloud-bigquery for BigQuery operations
+4. google-cloud-storage for GCS operations
+5. ipykernel enables Jupyter notebooks with custom venv
+6. Pattern-based table deletion possible via CLI, Python, or SQL
+7. Airflow orchestrates ETL: Download → GCS → BigQuery
+
+
+================================================================================
+                         FILES CREATED/MODIFIED
+================================================================================
+
+Created:
+  - pyproject.toml          (uv project config)
+  - uv.lock                 (dependency lock file)
+  - .venv/                  (virtual environment)
+  - main.py                 (starter Python file)
+  - Module_3/practice/      (Module 3 working directory)
+
+Gitignore additions:
+  - .python-version         (uv Python version file)
+
+
+================================================================================
+                               END OF LOG
+================================================================================

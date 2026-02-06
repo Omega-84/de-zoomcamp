@@ -3,6 +3,7 @@ dez/
 *.parquet
 *.ipynb
 .ipynb_checkpoints/
+.python-version
 
 # Google Cloud
 *.json
