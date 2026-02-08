@@ -1,4 +1,4 @@
-# Data Engineering Zoomcamp 2025
+# Data Engineering Zoomcamp 2026
 
 ![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
