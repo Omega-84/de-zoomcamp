@@ -1,0 +1,196 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: February 8, 2026
+================================================================================
+
+SESSION DURATION: Day 14 (Module 3: Data Warehouse - Airflow Setup)
+
+================================================================================
+                     TOPIC 1: AIRFLOW SETUP WITH DOCKER COMPOSE
+================================================================================
+
+Set up Apache Airflow 2.10.4 using Docker Compose for workflow orchestration.
+
+--------------------------------------------------------------------------------
+DOCKER COMPOSE SERVICES
+--------------------------------------------------------------------------------
+
+| Service | Image | Purpose |
+|---------|-------|---------|
+| postgres | postgres:13 | Airflow metadata database |
+| redis | redis:7.2-bookworm | Celery message broker |
+| airflow-webserver | apache/airflow:2.10.4 | Web UI (port 8080) |
+| airflow-scheduler | apache/airflow:2.10.4 | DAG scheduling |
+| airflow-worker | apache/airflow:2.10.4 | Task execution |
+| airflow-triggerer | apache/airflow:2.10.4 | Async triggers |
+| airflow-init | apache/airflow:2.10.4 | Database initialization |
+
+Default credentials: airflow / airflow
+
+--------------------------------------------------------------------------------
+KEY CONFIGURATION
+--------------------------------------------------------------------------------
+
+# Install GCP libraries at container startup
+_PIP_ADDITIONAL_REQUIREMENTS: google-cloud-storage google-cloud-bigquery
+
+# GCP authentication via service account
+GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/service-account.json
+
+# Volume mounts
+- ./dags:/opt/airflow/dags
+- ./plugins:/opt/airflow/plugins
+- ./keys:/opt/airflow/keys
+- ./logs:/opt/airflow/logs
+
+
+================================================================================
+                     TOPIC 2: AIRFLOW PLUGINS
+================================================================================
+
+Created reusable helper functions as an Airflow plugin for GCS operations.
+
+--------------------------------------------------------------------------------
+PLUGIN STRUCTURE
+--------------------------------------------------------------------------------
+
+airflow/
+├── dags/
+│   └── upload_files.py          <- DAG definition
+├── plugins/
+│   └── gcs_helpers/             <- Reusable module
+│       ├── __init__.py
+│       └── modules.py
+├── keys/                        <- Service account (gitignored)
+│   └── service-account.json
+└── docker-compose.yaml
+
+--------------------------------------------------------------------------------
+PLUGIN USAGE IN DAG
+--------------------------------------------------------------------------------
+
+# Import from plugin (Airflow auto-discovers plugins/ folder)
+from gcs_helpers import download_parquet, push_to_gcs, BUCKET_NAME
+
+Plugins are auto-discovered by Airflow when placed in /opt/airflow/plugins
+
+
+================================================================================
+                     TOPIC 3: GCS UPLOAD DAG
+================================================================================
+
+Created DAG to download Yellow Taxi parquet files and upload to GCS.
+
+--------------------------------------------------------------------------------
+DAG STRUCTURE
+--------------------------------------------------------------------------------
+
+@dag(dag_id="upload_yellow_taxi_to_gcs")
+def upload_files():
+    
+    @task
+    def ensure_bucket():
+        check_bucket(BUCKET_NAME)
+    
+    @task
+    def download_files(bucket_ready):
+        for i in range(1, 7):
+            download_parquet(i)
+    
+    @task
+    def upload_to_gcs(files_downloaded):
+        for i in range(1, 7):
+            push_to_gcs(i)
+    
+    # Task dependencies via return values
+    bucket_ready = ensure_bucket()
+    files_downloaded = download_files(bucket_ready)
+    upload_to_gcs(files_downloaded)
+
+--------------------------------------------------------------------------------
+HELPER FUNCTIONS (modules.py)
+--------------------------------------------------------------------------------
+
+get_client()          -> Get authenticated GCS client
+download_parquet(month) -> Download parquet file from NYC TLC
+check_bucket(name)    -> Ensure bucket exists
+verify_upload(month)  -> Check if blob exists in bucket
+push_to_gcs(month)    -> Upload file with retries
+
+
+================================================================================
+                     TOPIC 4: GCP AUTHENTICATION IN DOCKER
+================================================================================
+
+Two methods for authenticating with GCP from Docker containers:
+
+--------------------------------------------------------------------------------
+METHOD 1: ENVIRONMENT VARIABLE (Automatic)
+--------------------------------------------------------------------------------
+
+docker-compose.yaml:
+  environment:
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/service-account.json
+  volumes:
+    - ./keys:/opt/airflow/keys
+
+Python code:
+  client = storage.Client()  # Auto-detects env var
+
+--------------------------------------------------------------------------------
+METHOD 2: EXPLICIT FILE PATH (In code)
+--------------------------------------------------------------------------------
+
+CREDENTIALS_FILE = "/opt/airflow/keys/service-account.json"
+client = storage.Client.from_service_account_json(CREDENTIALS_FILE)
+
+
+================================================================================
+                     TOPIC 5: DEBUGGING AIRFLOW DAGS
+================================================================================
+
+DAG logs are stored in: logs/dag_id=<name>/run_id=<id>/task_id=<task>/
+
+Log analysis:
+1. Check each task's attempt log
+2. Look for SUCCESS/FAILED markers
+3. Check INFO lines for print() output
+4. Look for ERROR/Exception traces
+
+Common issues found:
+- Relative paths don't work (use absolute Docker paths)
+- airflow.sdk is Airflow 3.x only (use airflow.decorators for 2.x)
+- Retry loops can cause confusing logs if files are deleted mid-retry
+
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+1. Airflow plugins auto-discover modules in /opt/airflow/plugins
+2. Use airflow.decorators (not airflow.sdk) for Airflow 2.x
+3. Mount service account JSON and set GOOGLE_APPLICATION_CREDENTIALS
+4. Use absolute paths inside Docker containers
+5. DAG logs help debug task execution issues
+6. _PIP_ADDITIONAL_REQUIREMENTS installs packages at container start
+7. keys/ folder pattern keeps secrets organized and gitignored
+
+
+================================================================================
+                         FILES CREATED/MODIFIED
+================================================================================
+
+Created:
+  - Module_3/practice/airflow/docker-compose.yaml
+  - Module_3/practice/airflow/dags/upload_files.py
+  - Module_3/practice/airflow/plugins/gcs_helpers/__init__.py
+  - Module_3/practice/airflow/plugins/gcs_helpers/modules.py
+  - Module_3/practice/airflow/keys/ (gitignored)
+
+Modified:
+  - .gitignore (added keys/, airflow/logs/)
+
+
+================================================================================
+                               END OF LOG
+================================================================================

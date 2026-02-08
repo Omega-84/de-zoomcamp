@@ -8,6 +8,7 @@ dez/
 # Google Cloud
 *.json
 service-account.json
+keys/
 google-cloud-sdk/
 *.tar.gz
 
@@ -31,3 +32,6 @@ terraform/keys/
 
 # Data files (large)
 taxi_zone_lookup.csv
+
+# Airflow
+**/airflow/logs/
