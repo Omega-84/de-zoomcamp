@@ -6,6 +6,8 @@
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![GCP](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
 ![Kestra](https://img.shields.io/badge/Kestra-7B42BC?style=for-the-badge&logoColor=white)
+![Airflow](https://img.shields.io/badge/Airflow-017CEE?style=for-the-badge&logo=apache-airflow&logoColor=white)
+![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
 
 A comprehensive journey through the [Data Engineering Zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) by DataTalks.Club.
 
@@ -17,7 +19,7 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 |--------|-------|--------|
 | 1 | [Containerization & Infrastructure as Code](#module-1-containerization--infrastructure-as-code) | ✅ Complete |
 | 2 | [Workflow Orchestration](#module-2-workflow-orchestration) | ✅ Complete |
-| 3 | [Data Warehouse](#module-3-data-warehouse) | ⬜ Not Started |
+| 3 | [Data Warehouse](#module-3-data-warehouse) | ✅ Complete |
 | 4 | [Analytics Engineering](#module-4-analytics-engineering) | ⬜ Not Started |
 | 5 | [Batch Processing](#module-5-batch-processing) | ⬜ Not Started |
 | 6 | [Streaming](#module-6-streaming) | ⬜ Not Started |
@@ -67,10 +69,21 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ## Module 3: Data Warehouse
 
-**Topics to Cover:**
-- [ ] BigQuery fundamentals
-- [ ] Partitioning and clustering
-- [ ] Best practices for data warehousing
+**Topics Covered:**
+- [x] BigQuery fundamentals
+- [x] External vs Materialized tables
+- [x] Partitioning and clustering
+- [x] Query optimization and cost estimation
+- [x] Apache Airflow for ETL
+- [x] GCS to BigQuery data pipeline
+
+**Homework:** [View Homework 3](./Module_3/Homework_3/)
+
+**Key Files:**
+- [`docker-compose.yaml`](./Module_3/practice/airflow/docker-compose.yaml) - Airflow cluster
+- [`upload_files.py`](./Module_3/practice/airflow/dags/upload_files.py) - GCS upload DAG
+- [`gcs_helpers/`](./Module_3/practice/airflow/plugins/gcs_helpers/) - Reusable GCS helpers
+- [`Homework_3.sql`](./Module_3/Homework_3/Homework_3.sql) - BigQuery queries
 
 ---
 
@@ -119,11 +132,8 @@ de-zoomcamp/
 │   │   ├── Dockerfile
 │   │   ├── docker-compose.yaml
 │   │   ├── ingest_to_db.py
-│   │   ├── queries.sql
 │   │   └── README.md
 │   └── practice/
-│       ├── pipeline/
-│       ├── terraform/
 │       └── learning_logs/
 ├── Module_2/
 │   ├── Homework_2/          # Kestra homework
@@ -131,7 +141,14 @@ de-zoomcamp/
 │   └── practice/
 │       ├── docker-compose.yaml
 │       └── learning_logs/
-├── Module_3/                # Coming soon
+├── Module_3/
+│   ├── Homework_3/          # BigQuery homework
+│   │   ├── Homework_3.sql
+│   │   └── README.md
+│   └── practice/
+│       ├── airflow/
+│       └── learning_logs/
+├── Module_4/                # Coming soon
 └── README.md
 ```
 
@@ -145,8 +162,8 @@ de-zoomcamp/
 | **Database** | PostgreSQL, BigQuery |
 | **Infrastructure** | Terraform, Google Cloud Platform |
 | **Programming** | Python, SQL |
-| **Orchestration** | Kestra |
-| **Processing** | Apache Spark (upcoming) |
+| **Orchestration** | Kestra, Apache Airflow |
+| **Data Warehouse** | BigQuery |
 | **Streaming** | Apache Kafka (upcoming) |
 
 ---
@@ -168,6 +185,10 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 - [Day 9-10: Kestra setup & flows 01-07](./Module_2/practice/learning_logs/learnings_2026-01-25.txt)
 - [Day 11: GCP secrets & flows](./Module_2/practice/learning_logs/learnings_2026-01-27.txt)
 - [Day 12: GCP Taxi & AI/RAG (flows 08-11)](./Module_2/practice/learning_logs/learnings_2026-01-29.txt)
+
+**Module 3:**
+- [Day 13: Python GCP setup](./Module_3/practice/learning_logs/learnings_2026-02-05.txt)
+- [Day 14: Airflow setup & GCS DAG](./Module_3/practice/learning_logs/learnings_2026-02-08.txt)
 
 ---
 
