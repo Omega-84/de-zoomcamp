@@ -35,3 +35,15 @@ taxi_zone_lookup.csv
 
 # Airflow
 **/airflow/logs/
+
+# Python
+__pycache__/
+*.pyc
+
+# dbt
+**/target/
+**/dbt_packages/
+**/logs/dbt.log
+dbt
+dbt_cloud.yml
+creds.json

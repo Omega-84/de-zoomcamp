@@ -1,0 +1,272 @@
+================================================================================
+                    DATA ENGINEERING ZOOMCAMP - LEARNING LOG
+                              Date: February 15, 2026
+================================================================================
+
+SESSION DURATION: Day 16 (Module 4: Analytics Engineering - Pipeline & dbt Setup)
+
+================================================================================
+                     TOPIC 1: NYC TAXI DATA PIPELINE (CSV → GCS → BIGQUERY)
+================================================================================
+
+Built a full data pipeline to download green/yellow taxi CSV data from GitHub,
+upload to GCS, and load into BigQuery with deduplication via MERGE.
+
+--------------------------------------------------------------------------------
+PIPELINE FLOW
+--------------------------------------------------------------------------------
+
+Download CSV.gz from GitHub → Upload to GCS bucket → Create BQ external table
+→ Create tmp table with unique_row_id (MD5 hash) → MERGE into master table
+
+--------------------------------------------------------------------------------
+BIGQUERY TABLE STRATEGY
+--------------------------------------------------------------------------------
+
+1. Master table     - CREATE TABLE IF NOT EXISTS (partitioned by pickup datetime)
+2. External table   - CREATE OR REPLACE EXTERNAL TABLE (points to GCS CSV file)
+3. Temporary table  - CREATE OR REPLACE TABLE (adds unique_row_id + filename)
+4. Merge            - MERGE INTO master using unique_row_id to prevent duplicates
+
+Unique row ID formula:
+  MD5(CONCAT(VendorID, pickup_datetime, dropoff_datetime, PULocationID, DOLocationID))
+
+--------------------------------------------------------------------------------
+GREEN VS YELLOW SCHEMA DIFFERENCES
+--------------------------------------------------------------------------------
+
+| Difference           | Green                    | Yellow                   |
+|----------------------|--------------------------|--------------------------|
+| Pickup column        | lpep_pickup_datetime     | tpep_pickup_datetime     |
+| Dropoff column       | lpep_dropoff_datetime    | tpep_dropoff_datetime    |
+| VendorID description | LPEP provider            | TPEP provider            |
+| Extra columns        | ehail_fee, trip_type     | (not present)            |
+| Column order         | Different from yellow    | Different from green     |
+
+Cannot be trivially refactored into one function without a schema-driven approach.
+
+--------------------------------------------------------------------------------
+BQ DATASET ID GOTCHA
+--------------------------------------------------------------------------------
+
+BigQuery dataset IDs must be alphanumeric + underscores ONLY.
+GCS bucket names allow hyphens (e.g., "de-zoomcamp-485104-bucket").
+Using bucket name as dataset ID caused: "Invalid dataset ID" error.
+Fix: Use a proper dataset name (e.g., "demo_dataset").
+
+
+================================================================================
+                     TOPIC 2: AIRFLOW DAG SETUP (MODULE 4)
+================================================================================
+
+Created two Airflow DAGs for green and yellow taxi data, following Module 3 pattern.
+
+--------------------------------------------------------------------------------
+DAG STRUCTURE
+--------------------------------------------------------------------------------
+
+Module_4/practice/airflow/
+├── dags/
+│   ├── green_taxi_pipeline.py     # 9 AM EST, 1st of every month
+│   └── yellow_taxi_pipeline.py    # 10 AM EST, 1st of every month
+├── plugins/
+│   └── taxi_helpers/
+│       ├── __init__.py
+│       └── modules.py             # download, GCS upload, BQ table creation
+├── keys/
+│   └── service-account.json       # (gitignored)
+└── docker-compose.yaml
+
+--------------------------------------------------------------------------------
+DAG CONFIGURATION
+--------------------------------------------------------------------------------
+
+@dag(
+    schedule="0 9 1 * *",       # cron: 9 AM on 1st of every month
+    start_date=datetime(2019, 1, 1, tzinfo=EST),
+    catchup=False,              # backfills triggered manually
+    max_active_runs=1,          # one month at a time
+)
+
+Task flow: ensure_bucket → upload_to_gcs → create_bq_tables
+
+--------------------------------------------------------------------------------
+AIRFLOW CONTEXT (**context)
+--------------------------------------------------------------------------------
+
+Tasks use **context to get execution metadata from Airflow at runtime:
+
+  execution_date = context["data_interval_start"]
+  year = execution_date.year
+  month = execution_date.month
+
+Key context variables:
+  data_interval_start  - Start of the data interval (the logical date)
+  data_interval_end    - End of the data interval
+  ds                   - Logical date as "YYYY-MM-DD" string
+  dag_run              - The DagRun object itself
+  params               - User-provided params for the run
+
+--------------------------------------------------------------------------------
+BACKFILL COMMANDS
+--------------------------------------------------------------------------------
+
+# Clear previous failed runs first
+docker compose exec airflow-worker airflow tasks clear green_taxi_pipeline \
+  -s 2019-01-01 -e 2020-12-31 -y
+
+# Run backfill (creates one DAG run per month)
+docker compose exec airflow-worker airflow dags backfill green_taxi_pipeline \
+  -s 2019-01-01 -e 2020-12-31
+
+# Chained command for both green and yellow
+docker compose exec airflow-worker airflow tasks clear green_taxi_pipeline \
+  -s 2019-01-01 -e 2020-12-31 -y && \
+docker compose exec airflow-worker airflow dags backfill green_taxi_pipeline \
+  -s 2019-01-01 -e 2020-12-31 && \
+docker compose exec airflow-worker airflow tasks clear yellow_taxi_pipeline \
+  -s 2019-01-01 -e 2020-12-31 -y && \
+docker compose exec airflow-worker airflow dags backfill yellow_taxi_pipeline \
+  -s 2019-01-01 -e 2020-12-31
+
+Important: If a backfill fails, you MUST clear the failed task instances before
+re-running, otherwise Airflow remembers the "failed" state and skips re-execution.
+
+--------------------------------------------------------------------------------
+BQ CLEANUP (DROP ALL GREEN/YELLOW TABLES)
+--------------------------------------------------------------------------------
+
+FOR record IN (
+  SELECT table_name
+  FROM `de-zoomcamp-485104.demo_dataset.INFORMATION_SCHEMA.TABLES`
+  WHERE table_name LIKE 'green%'
+)
+DO
+  EXECUTE IMMEDIATE FORMAT(
+    'DROP TABLE IF EXISTS `de-zoomcamp-485104.demo_dataset.%s`',
+    record.table_name
+  );
+END FOR;
+
+
+================================================================================
+                     TOPIC 3: DBT SETUP
+================================================================================
+
+Installed dbt Core with BigQuery adapter for analytics engineering.
+
+--------------------------------------------------------------------------------
+INSTALLATION
+--------------------------------------------------------------------------------
+
+# dbt installed via uv into the project virtual environment
+uv pip install dbt-bigquery
+
+# Verify
+dbt --version
+# Core: 1.11.5, BigQuery adapter: 1.11.0
+
+# dbt Cloud CLI also downloaded (standalone binary, not used for local dev)
+# dbt_0.40.14_linux_amd64.tar.gz → ./dbt binary
+
+--------------------------------------------------------------------------------
+DBT PROJECT STRUCTURE
+--------------------------------------------------------------------------------
+
+ny_taxi_project/
+├── dbt_project.yml           # Project config (profile, paths)
+├── creds.json                # BigQuery service account (gitignored)
+├── models/
+│   └── example/              # Default starter models
+│       ├── my_first_dbt_model.sql
+│       ├── my_second_dbt_model.sql
+│       └── schema.yml
+├── analyses/
+├── macros/
+├── seeds/
+├── snapshots/
+├── tests/
+├── target/                   # Compiled SQL output (gitignored)
+└── logs/                     # dbt logs (gitignored)
+
+--------------------------------------------------------------------------------
+KEY COMMANDS
+--------------------------------------------------------------------------------
+
+dbt compile   - Parse project and compile SQL (no execution)
+dbt run       - Execute models against BigQuery
+dbt test      - Run data tests
+dbt build     - Run seeds + models + snapshots + tests in DAG order
+dbt clean     - Remove target/ and dbt_packages/
+
+--------------------------------------------------------------------------------
+GOTCHA: CREDENTIALS
+--------------------------------------------------------------------------------
+
+dbt profiles.yml (in ~/.dbt/) references a keyfile path.
+If the path is wrong (e.g., ./creds.json when file doesn't exist), dbt fails:
+  "Database Error: [Errno 2] No such file or directory: './creds.json'"
+
+Fix: Place creds.json in the dbt project root or use absolute path.
+
+
+================================================================================
+                     TOPIC 4: GITIGNORE UPDATES
+================================================================================
+
+Added rules to prevent committing sensitive/generated files:
+
+# Python
+__pycache__/
+*.pyc
+
+# dbt
+**/target/           # Compiled SQL output
+**/dbt_packages/     # Downloaded dbt packages
+**/logs/dbt.log      # dbt log files
+dbt                  # dbt Cloud CLI binary
+dbt_cloud.yml        # dbt Cloud config
+creds.json           # BigQuery credentials
+
+Previously existing rules that also help:
+  *.json               # Catches service-account.json, creds.json
+  keys/                # Catches airflow/keys/
+  **/airflow/logs/     # Catches all Airflow task logs
+  *.tar.gz             # Catches dbt binary archive
+
+
+================================================================================
+                               KEY TAKEAWAYS
+================================================================================
+
+1. BigQuery dataset IDs cannot contain hyphens (unlike GCS bucket names)
+2. MD5 hash of trip attributes creates a reliable unique_row_id for deduplication
+3. MERGE INTO prevents duplicate rows when re-running the same month
+4. External tables let BQ query GCS files directly without loading data
+5. Airflow backfills require clearing failed tasks before re-running
+6. max_active_runs=1 ensures sequential processing during backfill
+7. **context in Airflow tasks provides execution metadata (date, params, etc.)
+8. dbt-bigquery installs both dbt-core and the BQ adapter
+9. dbt compile validates SQL without running it against the warehouse
+10. Keep credentials (creds.json, service-account.json) gitignored
+
+
+================================================================================
+                         FILES CREATED/MODIFIED
+================================================================================
+
+Created:
+  - Module_4/practice/airflow/dags/green_taxi_pipeline.py
+  - Module_4/practice/airflow/dags/yellow_taxi_pipeline.py
+  - Module_4/practice/airflow/plugins/taxi_helpers/__init__.py
+  - Module_4/practice/airflow/plugins/taxi_helpers/modules.py
+  - Module_4/practice/ny_taxi_project/dbt_project.yml
+  - Module_4/practice/learning_logs/learnings_2026-02-15.txt
+
+Modified:
+  - .gitignore (added dbt, pycache, creds rules)
+
+
+================================================================================
+                               END OF LOG
+================================================================================

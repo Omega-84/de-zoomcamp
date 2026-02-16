@@ -1,0 +1,64 @@
+from airflow.decorators import dag, task
+from datetime import datetime
+from pendulum import timezone
+
+from taxi_helpers import (
+    download_file,
+    check_bucket,
+    push_to_gcs,
+    create_yellow_tables,
+    BUCKET_NAME,
+)
+
+EST = timezone("America/New_York")
+
+
+@dag(
+    dag_id="yellow_taxi_pipeline",
+    description="Downloads yellow taxi CSV data, uploads to GCS, and creates BigQuery tables",
+    schedule="0 10 1 * *",  # 1st of every month at 10 AM EST
+    start_date=datetime(2019, 1, 1, tzinfo=EST),
+    catchup=False,
+    max_active_runs=1,
+    tags=["yellow", "gcs", "bigquery"],
+)
+def yellow_taxi_pipeline():
+
+    @task
+    def ensure_bucket():
+        """Ensure the GCS bucket exists."""
+        check_bucket(BUCKET_NAME)
+        return True
+
+    @task
+    def upload_to_gcs(bucket_ready: bool, **context):
+        """Download yellow taxi file and upload to GCS for this execution month."""
+        execution_date = context["data_interval_start"]
+        year = execution_date.year
+        month = execution_date.month
+        print(f"Processing yellow taxi data for {year}-{month:02d}")
+
+        if not push_to_gcs("yellow", month, year):
+            raise Exception(f"Failed to upload yellow taxi data for {year}-{month:02d}")
+        return True
+
+    @task
+    def create_bq_tables(upload_done: bool, **context):
+        """Create BigQuery external table, tmp table, and merge into master."""
+        execution_date = context["data_interval_start"]
+        year = execution_date.year
+        month = execution_date.month
+        print(f"Creating BQ tables for yellow taxi {year}-{month:02d}")
+
+        if not create_yellow_tables(year, month):
+            raise Exception(f"Failed to create BQ tables for yellow taxi {year}-{month:02d}")
+        return True
+
+    # Task dependencies
+    bucket_ready = ensure_bucket()
+    upload_done = upload_to_gcs(bucket_ready)
+    create_bq_tables(upload_done)
+
+
+# Instantiate the DAG
+yellow_taxi_pipeline()
