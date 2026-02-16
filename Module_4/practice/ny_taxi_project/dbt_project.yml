@@ -5,9 +5,6 @@
 name: 'ny_taxi_project'
 version: '1.0.0'
 
-dbt-cloud:
-    project-id: 70471823553494
-
 # This setting configures which "profile" dbt uses for this project.
 profile: 'ny_taxi_project'
 
@@ -34,6 +31,13 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   ny_taxi_project:
-    # Config indicated by + and applies to all files under models/example/
-    example:
+    staging:
       +materialized: view
+    intermediate:
+      +materialized: table
+    marts:
+      +materialized: table
+
+dispatch:
+  - macro_namespace: dbt_utils
+    search_order: ['ny_taxi_project', 'dbt_utils']

@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw data sources for NY Taxi trips"
+    database: de-zoomcamp-485104
+    schema: demo_dataset
+    tables:
+      - name: green_tripdata
+      - name: yellow_tripdata
+      - name: fhv_tripdata

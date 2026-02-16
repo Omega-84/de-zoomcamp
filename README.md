@@ -20,7 +20,7 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 | 1 | [Containerization & Infrastructure as Code](#module-1-containerization--infrastructure-as-code) | ✅ Complete |
 | 2 | [Workflow Orchestration](#module-2-workflow-orchestration) | ✅ Complete |
 | 3 | [Data Warehouse](#module-3-data-warehouse) | ✅ Complete |
-| 4 | [Analytics Engineering](#module-4-analytics-engineering) | ⬜ Not Started |
+| 4 | [Analytics Engineering](#module-4-analytics-engineering) | ✅ Complete |
 | 5 | [Batch Processing](#module-5-batch-processing) | ⬜ Not Started |
 | 6 | [Streaming](#module-6-streaming) | ⬜ Not Started |
 | 7 | [Project](#module-7-project) | ⬜ Not Started |
@@ -89,10 +89,20 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ## Module 4: Analytics Engineering
 
-**Topics to Cover:**
-- [ ] dbt (data build tool)
-- [ ] Data modeling
-- [ ] Testing and documentation
+**Topics Covered:**
+- [x] dbt (data build tool)
+- [x] Data modeling (staging, intermediate, marts)
+- [x] Testing (generic & singular tests)
+- [x] Documentation & schemas
+- [x] Dispatch & macros
+- [x] Airflow ingestion pipeline for FHV data
+
+**Homework:** [View Homework 4](./Module_4/Homework/)
+
+**Key Files:**
+- [`ny_taxi_project/`](./Module_4/practice/ny_taxi_project/) - Main dbt project
+- [`fhv_taxi_pipeline.py`](./Module_4/practice/airflow/dags/fhv_taxi_pipeline.py) - FHV Ingestion DAG
+- [`models/`](./Module_4/practice/ny_taxi_project/models/) - SQL transformations
 
 ---
 
@@ -148,7 +158,14 @@ de-zoomcamp/
 │   └── practice/
 │       ├── airflow/
 │       └── learning_logs/
-├── Module_4/                # Coming soon
+├── Module_4/
+│   ├── Homework/            # dbt homework
+│   │   ├── stg_fhv_tripdata.sql
+│   │   └── README.md
+│   └── practice/
+│       ├── airflow/         # FHV ingestion DAGs
+│       ├── ny_taxi_project/ # dbt project
+│       └── learning_logs/
 └── README.md
 ```
 
@@ -164,6 +181,7 @@ de-zoomcamp/
 | **Programming** | Python, SQL |
 | **Orchestration** | Kestra, Apache Airflow |
 | **Data Warehouse** | BigQuery |
+| **Analytics Engineering** | dbt (Data Build Tool) |
 | **Streaming** | Apache Kafka (upcoming) |
 
 ---
@@ -189,6 +207,9 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 **Module 3:**
 - [Day 13: Python GCP setup](./Module_3/practice/learning_logs/learnings_2026-02-05.txt)
 - [Day 14: Airflow setup & GCS DAG](./Module_3/practice/learning_logs/learnings_2026-02-08.txt)
+
+**Module 4:**
+- [Day 15: dbt Setup & Models (Staging, Marts)](./Module_4/practice/learning_logs/learnings_2026-02-16.txt)
 
 ---
 

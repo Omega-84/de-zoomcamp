@@ -1,0 +1,108 @@
+# Analytics Engineering & dbt (Module 4)
+
+## Overview
+This module focused on Analytics Engineering using **dbt (data build tool)** to transform raw data loaded in BigQuery into analytical models. We also integrated **Airflow** to orchestrate the ingestion of FHV data specifically for 2019, ensuring our data warehouse was fully populated for analysis.
+
+## 1. Concepts & Fundamentals Learned
+
+### Analytics Engineering
+-   **Role Definition**: The bridge between data engineering (ingestion/infrastructure) and data analysis (business insights).
+-   **Core Responsibilities**: Cleaning data, testing data quality, documenting schemas, and deploying reliable datasets.
+
+### dbt (Data Build Tool)
+-   **T in ELT**: dbt handles the *Transform* step in Extract-Load-Transform workflows.
+-   **Jinja Templating**: Combining SQL with Jinja allows for control structures (if/else), environment variable injection, and code reuse via macros.
+-   **DAGs**: dbt automatically builds a Directed Acyclic Graph of model dependencies, ensuring transformations run in the correct order.
+-   **Ephemeral vs View vs Table**: Understanding different materialization strategies:
+    -   `view`: Lightweight, always fresh (default).
+    -   `table`: Performance optimized, stored physically.
+    -   `ephemeral`: Temporary CTEs (not stored in DB).
+    -   `incremental`: Updates only new/changed rows for large datasets.
+
+## 2. Implementation Details
+
+### A. dbt Project Setup (`ny_taxi_project`)
+1.  **Profiles Configuration (`profiles.yml`)**:
+    -   Configured connection to BigQuery using a service account JSON.
+    -   Defined `dev` and `prod` targets to separate environments.
+2.  **Project Configuration (`dbt_project.yml`)**:
+    -   Set global variable settings.
+    -   Defined materialization defaults (staging as views, marts as tables).
+    -   **Critical Fix**: Added `dispatch` configuration to resolve macro search order errors with `dbt_utils` on BigQuery.
+
+### B. Data Modeling Architecture
+
+#### Staging Layer (`models/staging/`)
+-   **Purpose**: 1-to-1 mapping with source tables, renaming columns, and basic type casting.
+-   **Models Created**:
+    -   `stg_green_tripdata`: Cast timestamps, standardized payment types.
+    -   `stg_yellow_tripdata`: Aligned schema with green taxi data.
+    -   `stg_fhv_tripdata`: Handled FHV specific fields (`dispatching_base_num`, `SR_Flag`).
+-   **Key Technique**: Used `{{ source('raw', 'table') }}` to reference raw data, allowing for easy environment switching.
+
+#### Intermediate Layer (`models/intermediate/`)
+-   **Purpose**: Complex transformations and joining multiple sources.
+-   **Models Created**:
+    -   `int_trips_unioned`: Combined Green and Yellow taxi data into a single stream using `UNION ALL`.
+    -   `int_trips`: Joined with `dim_zones` and added surrogate keys.
+-   **Key Technique**: Used `dbt_utils.generate_surrogate_key` to create unique observation IDs from multiple columns.
+
+#### Marts Layer (`models/marts/`)
+-   **Purpose**: Business-facing tables optimized for reporting.
+-   **Models Created**:
+    -   `dim_zones`: Dimension table for taxi zones.
+    -   `fct_trips`: Fact table with enriched trip data (zone names, service types).
+    -   `fct_monthly_zone_revenue`: Aggregated table for dashboarding (revenue by zone/month/service).
+
+### C. Testing & Documentation
+-   **Generic Tests**: Added `unique`, `not_null`, and `accepted_values` tests in `schema.yml` to ensure data integrity.
+-   **Singular Tests**: Wrote custom SQL queries to test specific logic (e.g., ensuring `total_amount` is positive).
+-   **Documentation**: Used `dbt docs generate` to create a static site visualizing the project DAG and column descriptions.
+-   **Codegen**: Used the `dbt-codegen` package to automatically generate base `schema.yml` files, saving significant time.
+
+### D. Airflow Pipeline (`fhv_taxi_pipeline`)
+-   **Goal**: Ingest FHV Trip Data for 2019 to complete the dataset.
+-   **Custom Logic**: Created a Python-based DAG (`fhv_taxi_pipeline.py`) that:
+    1.  Downloads the specific monthly CSV from GitHub.
+    2.  Uploads it to GCS.
+    3.  Creates an **External Table** in BigQuery pointing to the GCS file.
+    4.  **Merges** the data into a partitioned master table (`fhv_tripdata`).
+    5.  Cleans up temporary external tables to keep the warehouse tidy.
+-   **Backfilling**: Configured `catchup=True` to automatically run and process all months of 2019.
+
+## 3. Challenges & Resolutions
+
+| Challenge | Solution |
+|-----------|----------|
+| **dbt Dispatch Error** | The `dbt_utils.generate_surrogate_key` macro wasn't being found. **Fix**: explicitly defined the `dispatch` search order in `dbt_project.yml`. |
+| **Schema Mismatch** | Green and Yellow taxi data had slightly different schemas (e.g., `ehail_fee`). **Fix**: Harmonized columns in the staging layer by adding null placeholders or casting types. |
+| **FHV Data Quality** | FHV data schemas changed over time. **Fix**: Created a robust staging model (`stg_fhv_tripdata`) that maps only the critical common columns. |
+| **Large Data Volumne** | Processing millions of rows was slow. **Fix**: Utilized partitioned tables in BigQuery (partitioned by `pickup_datetime`) to optimize query costs and performance. |
+
+## 4. Key Commands Reference
+
+```bash
+# Debug database connection
+dbt debug
+
+# Install project dependencies (packages.yml)
+dbt deps
+
+# Run all models
+dbt run
+
+# Run specific models (and their upstream dependencies)
+dbt run --select +int_trips
+
+# Execute tests
+dbt test
+
+# Generate documentation files
+dbt docs generate
+
+# Serve documentation locally
+dbt docs serve
+
+# Codegen: Generate YAML for a model
+dbt run-operation generate_model_yaml --args '{"model_names": ["fct_trips"]}'
+```

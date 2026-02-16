@@ -6,6 +6,7 @@ from taxi_helpers.modules import (
     push_to_gcs,
     create_green_tables,
     create_yellow_tables,
+    create_fhv_tables,
     BUCKET_NAME,
     PROJECT_ID,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "push_to_gcs",
     "create_green_tables",
     "create_yellow_tables",
+    "create_fhv_tables",
     "BUCKET_NAME",
     "PROJECT_ID",
 ]
