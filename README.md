@@ -8,6 +8,8 @@
 ![Kestra](https://img.shields.io/badge/Kestra-7B42BC?style=for-the-badge&logoColor=white)
 ![Airflow](https://img.shields.io/badge/Airflow-017CEE?style=for-the-badge&logo=apache-airflow&logoColor=white)
 ![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
+![Bruin](https://img.shields.io/badge/Bruin-FF6B35?style=for-the-badge&logoColor=white)
+![DuckDB](https://img.shields.io/badge/DuckDB-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
 
 A comprehensive journey through the [Data Engineering Zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) by DataTalks.Club.
 
@@ -21,7 +23,7 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 | 2 | [Workflow Orchestration](#module-2-workflow-orchestration) | ✅ Complete |
 | 3 | [Data Warehouse](#module-3-data-warehouse) | ✅ Complete |
 | 4 | [Analytics Engineering](#module-4-analytics-engineering) | ✅ Complete |
-| 5 | [Batch Processing](#module-5-batch-processing) | ⬜ Not Started |
+| 5 | [Data Platforms](#module-5-data-platforms) | ✅ Complete |
 | 6 | [Streaming](#module-6-streaming) | ⬜ Not Started |
 | 7 | [Project](#module-7-project) | ⬜ Not Started |
 
@@ -106,12 +108,24 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ---
 
-## Module 5: Batch Processing
+## Module 5: Data Platforms
 
-**Topics to Cover:**
-- [ ] Apache Spark
-- [ ] DataFrames and SQL
-- [ ] Spark internals
+**Topics Covered:**
+- [x] Bruin CLI for unified data pipelines
+- [x] ELT pipeline architecture (ingestion → staging → reports)
+- [x] Python ingestion assets (NYC Taxi parquet data)
+- [x] SQL transformation & deduplication
+- [x] Materialization strategies (append, time_interval)
+- [x] Data quality checks (not_null, non_negative, custom)
+- [x] DuckDB for local development
+
+**Homework:** [View Homework 5](./Module_5/Homework/)
+
+**Key Files:**
+- [`my-taxi-pipeline/`](./Module_5/my-taxi-pipeline/) - Full Bruin pipeline project
+- [`trips.py`](./Module_5/my-taxi-pipeline/pipeline/assets/ingestion/trips.py) - Python ingestion asset
+- [`trips.sql`](./Module_5/my-taxi-pipeline/pipeline/assets/staging/trips.sql) - SQL staging asset
+- [`trips_report.sql`](./Module_5/my-taxi-pipeline/pipeline/assets/reports/trips_report.sql) - SQL reporting asset
 
 ---
 
@@ -166,6 +180,16 @@ de-zoomcamp/
 │       ├── airflow/         # FHV ingestion DAGs
 │       ├── ny_taxi_project/ # dbt project
 │       └── learning_logs/
+├── Module_5/
+│   ├── Homework/            # Bruin homework
+│   │   └── README.md
+│   ├── my-taxi-pipeline/    # Bruin ELT pipeline
+│   │   ├── pipeline/
+│   │   │   ├── pipeline.yml
+│   │   │   └── assets/
+│   │   └── README.md
+│   └── practice/
+│       └── learning_logs/
 └── README.md
 ```
 
@@ -182,6 +206,7 @@ de-zoomcamp/
 | **Orchestration** | Kestra, Apache Airflow |
 | **Data Warehouse** | BigQuery |
 | **Analytics Engineering** | dbt (Data Build Tool) |
+| **Data Platforms** | Bruin, DuckDB |
 | **Streaming** | Apache Kafka (upcoming) |
 
 ---
@@ -210,6 +235,9 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 
 **Module 4:**
 - [Day 15: dbt Setup & Models (Staging, Marts)](./Module_4/practice/learning_logs/learnings_2026-02-16.txt)
+
+**Module 5:**
+- [Day 16: Bruin ELT Pipeline (Ingestion, Staging, Reports)](./Module_5/practice/learning_logs/learnings_2026-02-25.txt)
 
 ---
 

@@ -48,3 +48,12 @@ __pycache__/
 dbt
 dbt_cloud.yml
 creds.json
+
+# Bruin
+.bruin.yml
+*.db
+*.db.wal
+logs/runs
+logs/*.log
+logs/queries
+*.py[cod]

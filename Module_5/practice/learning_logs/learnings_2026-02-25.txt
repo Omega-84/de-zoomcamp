@@ -1,0 +1,168 @@
+# Data Platforms with Bruin (Module 5)
+
+## Overview
+This module introduced **Bruin** — a unified CLI tool that combines data ingestion, transformation, quality checks, and orchestration into a single platform. We built a complete end-to-end NYC Taxi ELT pipeline from scratch, going from raw data ingestion through to analytics-ready reporting tables.
+
+## 1. Concepts & Fundamentals
+
+### What is Bruin?
+-   **Unified Data Platform**: Bruin replaces the need for separate tools (Airflow + dbt + Airbyte + Great Expectations) with a single CLI.
+-   **ELT, not ETL**: Data is first loaded raw (Extract + Load), then transformed in the warehouse (Transform).
+-   **Everything as Code**: All configuration is in text files (YAML, SQL, Python) — no UI-based configs.
+-   **Apache-licensed**: Open source with no vendor lock-in.
+
+### Core Abstractions
+-   **Asset**: Any data artifact that carries value — a table, view, file, or ML model. Each asset is a `.sql`, `.py`, or `.asset.yml` file.
+-   **Pipeline**: A group of assets executed together in dependency order. Defined via `pipeline.yml`.
+-   **Environment**: A named set of connection configs (e.g., `default` for local DuckDB, `production` for BigQuery).
+-   **Connection**: Credentials to authenticate with external data sources/destinations, defined in `.bruin.yml`.
+-   **Pipeline Run**: A single execution instance with specific date range and configuration.
+
+### Materialization Strategies
+| Strategy | Use Case | How It Works |
+|----------|----------|--------------|
+| `view` | Always-fresh data | Creates a SQL view (no physical storage) |
+| `table` (create+replace) | Small tables, full refresh | Drops and recreates the entire table |
+| `append` | Raw ingestion, event logs | Inserts new rows without touching existing data |
+| `merge` | Upsert with unique key | Updates existing rows, inserts new ones |
+| `time_interval` | Time-series incremental loads | Deletes rows in date range, re-inserts from query |
+| `delete+insert` | Partition-level refresh | Deletes matching rows by key, then inserts |
+
+### Quality Checks (Built-in)
+-   `not_null`: Ensures no NULL values in a column.
+-   `unique`: Ensures all values are distinct.
+-   `positive` / `non_negative` / `negative`: Numeric sign validation.
+-   `accepted_values`: Column values must be from a defined set.
+-   `pattern`: Regex validation on string columns.
+-   `min` / `max`: Range validation.
+-   **Custom checks**: Write arbitrary SQL queries that return a scalar to validate against an expected value.
+
+## 2. Project Architecture
+
+### Pipeline Structure
+```
+my-taxi-pipeline/
+├── .bruin.yml                          # Environment & DuckDB connection config
+├── pipeline/
+│   ├── pipeline.yml                    # Pipeline name, schedule, variables
+│   └── assets/
+│       ├── ingestion/
+│       │   ├── trips.py                # Python: fetch parquet from TLC API
+│       │   ├── requirements.txt        # pandas, requests, pyarrow, python-dateutil
+│       │   ├── payment_lookup.asset.yml # Seed: CSV → DuckDB lookup table
+│       │   └── payment_lookup.csv      # Static payment type reference data
+│       ├── staging/
+│       │   └── trips.sql               # SQL: deduplicate, clean, join with lookup
+│       └── reports/
+│           └── trips_report.sql        # SQL: aggregate by date/taxi_type/payment
+```
+
+### Data Flow (DAG)
+```
+ingestion.payment_lookup ──┐
+                           ├──→ staging.trips ──→ reports.trips_report
+ingestion.trips ───────────┘
+```
+
+### Layer-by-Layer Breakdown
+
+#### Ingestion Layer
+-   **`trips.py`** (Python asset):
+    -   Reads `BRUIN_START_DATE` / `BRUIN_END_DATE` environment variables.
+    -   Reads `taxi_types` from `BRUIN_VARS` JSON (supports `["yellow"]`, `["green"]`, or both).
+    -   Iterates over each month in the date range.
+    -   Downloads parquet files from `https://d37ci6vzurychx.cloudfront.net/trip-data/`.
+    -   Standardizes column names across yellow (`tpep_*`) and green (`lpep_*`) schemas.
+    -   Generates composite `trip_id` via MD5 hash.
+    -   Uses `append` strategy (duplicates handled downstream).
+-   **`payment_lookup.asset.yml`** (Seed asset):
+    -   Loads `payment_lookup.csv` into DuckDB as a reference table.
+    -   Maps `payment_type_id` → `payment_type_name` (credit_card, cash, dispute, etc.).
+
+#### Staging Layer
+-   **`trips.sql`** (SQL asset):
+    -   Uses `time_interval` strategy with `pickup_datetime` as `incremental_key`.
+    -   Deduplicates using `ROW_NUMBER() OVER (PARTITION BY trip_id, taxi_type)`.
+    -   Filters invalid rows: null pickup times, negative distances.
+    -   Joins with `payment_lookup` to enrich with human-readable payment names.
+    -   Custom quality check: verifies zero duplicate `trip_id` values.
+
+#### Reports Layer
+-   **`trips_report.sql`** (SQL asset):
+    -   Aggregates by `pickup_date`, `taxi_type`, and `payment_type_name`.
+    -   Metrics: `total_trips`, `total_passengers`, `total_distance`, `total_fare`, `total_amount`, `avg_trip_distance`, `avg_fare`, `avg_tip`.
+    -   Uses `time_interval` with `pickup_date` (DATE granularity) for consistency.
+
+## 3. Pipeline Execution Results
+
+### Test Run (Jan 2022 Yellow Taxis)
+| Table | Rows | Description |
+|-------|------|-------------|
+| `ingestion.trips` | 2,463,931 | Raw parquet data loaded |
+| `staging.trips` | 2,446,185 | After dedup + filtering (~17K removed) |
+| `reports.trips_report` | 156 | Daily aggregations (31 days × ~5 payment types) |
+
+### Quality Checks
+-   **19 total checks across 4 assets** — all passing.
+-   Notable: `total_amount` has legitimate negative values in real taxi data (refunds/disputes), so `non_negative` was intentionally removed from that column.
+
+## 4. Key Differences from Previous Modules
+
+| Aspect | Module 3-4 (Airflow + dbt) | Module 5 (Bruin) |
+|--------|---------------------------|-----------------|
+| **Orchestration** | Airflow DAGs (Python) | Bruin pipeline.yml (YAML) |
+| **Transformation** | dbt models (SQL + Jinja) | Bruin SQL assets (SQL + Jinja) |
+| **Ingestion** | Custom Python scripts | Bruin Python assets with `materialize()` |
+| **Quality** | dbt tests (schema.yml) | Bruin checks (inline in asset definition) |
+| **Local DB** | BigQuery (cloud) | DuckDB (local) |
+| **Config** | profiles.yml + dbt_project.yml | .bruin.yml + pipeline.yml |
+| **Dependencies** | `ref()` / `source()` | `depends:` in asset metadata |
+
+## 5. Challenges & Resolutions
+
+| Challenge | Resolution |
+|-----------|-----------|
+| **`materialize()` signature** | Bruin calls `materialize()` without arguments; changed to `materialize(context=None)`. |
+| **Column name normalization** | Bruin/dlt auto-converts column names to snake_case (e.g., `VendorID` → `vendor_id`). Updated staging SQL accordingly. |
+| **Negative `total_amount`** | Real taxi data contains refunds/disputes with negative values. Removed `non_negative` check from `total_amount` and `fare_amount` aggregations. |
+| **Python asset connection** | Python assets with materialization require an explicit `connection:` field, unlike SQL assets which use `default_connections` from `pipeline.yml`. |
+
+## 6. Commands Reference
+
+```bash
+# Install Bruin CLI
+curl -LsSf https://getbruin.com/install/cli | sh
+
+# Initialize a project
+bruin init zoomcamp my-taxi-pipeline
+
+# Validate pipeline (fast, no execution)
+bruin validate ./pipeline/pipeline.yml --environment default
+
+# Run full pipeline (first time — creates tables from scratch)
+bruin run ./pipeline/pipeline.yml --environment default --full-refresh \
+  --start-date 2022-01-01 --end-date 2022-02-01
+
+# Run a single asset + its downstream dependencies
+bruin run ./pipeline/assets/ingestion/trips.py --downstream
+
+# Override variables at runtime
+bruin run ./pipeline/pipeline.yml --var 'taxi_types=["yellow"]'
+
+# Query tables directly
+bruin query --connection duckdb-default --query "SELECT COUNT(*) FROM ingestion.trips"
+
+# View asset dependency graph
+bruin lineage ./pipeline/assets/staging/trips.sql
+
+# Test connections
+bruin connections list
+bruin connections ping duckdb-default
+```
+
+## 7. Key Takeaways
+1.  **Bruin simplifies the stack**: One tool replaces Airflow + dbt + Airbyte + Great Expectations.
+2.  **Quality checks are first-class**: Define checks inline with assets, not as a separate concern.
+3.  **Materialization matters**: Choosing the right strategy (`append` for ingestion, `time_interval` for staging/reports) is critical for correct incremental processing.
+4.  **DuckDB for local dev**: Fast, zero-config local development before deploying to BigQuery.
+5.  **Column normalization gotcha**: Always check actual column names after ingestion — Bruin/dlt may transform them.
