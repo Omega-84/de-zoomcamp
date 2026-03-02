@@ -1,0 +1,189 @@
+# Workshop: dlt (Data Load Tool)
+
+## Overview
+This workshop introduced **dlt** (Data Load Tool) — an open-source Python library for building data pipelines declaratively. We built two pipelines: an Open Library search pipeline (practice) and an NYC Taxi REST API pipeline (homework), both loading into DuckDB.
+
+## 1. Concepts & Fundamentals
+
+### What is dlt?
+-   **Data Load Tool**: A Python library that simplifies building data pipelines — handles schema inference, normalization, pagination, and loading.
+-   **Declarative Sources**: Define API endpoints, pagination, and auth in a config dict; dlt handles the rest.
+-   **Schema Evolution**: Automatically detects and adapts to schema changes.
+-   **Multiple Destinations**: Supports DuckDB, BigQuery, Snowflake, Postgres, Redshift, and more.
+
+### Core Abstractions
+-   **Source (`@dlt.source`)**: A group of related resources — typically one per API or data provider.
+-   **Resource (`@dlt.resource`)**: A single table/stream of data within a source. Each resource maps to one destination table.
+-   **Pipeline (`dlt.pipeline`)**: Orchestrates extract → normalize → load. Tracks state for incremental loads.
+-   **RESTClient**: High-level HTTP client with built-in pagination, auth, and retry logic.
+-   **Paginator**: Handles API pagination strategies (page number, offset, cursor, etc.).
+
+### REST API Source Patterns
+| Pattern | Use Case | Example |
+|---------|----------|---------|
+| **Declarative (`RESTAPIConfig`)** | Simple APIs with standard response shapes | `rest_api_resources(config)` |
+| **Imperative (`RESTClient`)** | Complex APIs, custom pagination, flat arrays | `client.paginate(endpoint)` |
+| **Hybrid** | Declarative config + custom paginator class | Custom `BasePaginator` subclass |
+
+### Built-in Paginators
+| Paginator | Response Format | Key Config |
+|-----------|----------------|------------|
+| `PageNumberPaginator` | JSON object with `total` field | `page_param`, `base_page` |
+| `OffsetPaginator` | JSON object with `total`/`count` | `offset_param`, `limit_param` |
+| `JSONResponseCursorPaginator` | JSON object with cursor/next token | `cursor_path`, `cursor_param` |
+| `SinglePagePaginator` | No pagination needed | — |
+| **Custom `BasePaginator`** | Any format (e.g., bare JSON arrays) | Override `update_state()` |
+
+### Data Normalization
+-   dlt automatically normalizes nested JSON into separate tables linked by `_dlt_parent_id`.
+-   Column names are converted to snake_case (e.g., `End_Lat` → `end_lat`).
+-   Arrays within records become child tables (e.g., `harry_potter_books__language`).
+-   Each row gets a unique `_dlt_id` and `_dlt_load_id` for tracking.
+
+## 2. Pipeline 1: Open Library API (Practice)
+
+### Architecture
+```
+Open Library Search API ──→ dlt source ──→ DuckDB
+     /search.json                          open_library_data.harry_potter_books
+     ?q=harry+potter                       open_library_data.harry_potter_books__language
+```
+
+### Configuration
+| Config | Value |
+|--------|-------|
+| **Base URL** | `https://openlibrary.org` |
+| **Endpoint** | `/search.json` |
+| **Query** | `q=harry potter`, `limit=50` |
+| **Paginator** | `page_number` (page param, 5 page max) |
+| **Data Selector** | `docs` (nested in `{num_found, docs: [...]}`) |
+
+### Key Learnings
+-   The `data_selector` field tells dlt WHERE in the JSON response to find the array of records.
+-   When the API returns `{"docs": [...]}`, set `data_selector: "docs"`.
+-   dlt auto-normalizes arrays (like `language: ["eng", "spa"]`) into child tables.
+-   Queried child table to find **14 Harry Potter books written in Spanish**.
+
+## 3. Pipeline 2: NYC Taxi API (Homework)
+
+### Architecture
+```
+NYC Taxi REST API ──→ StopOnEmptyPaginator ──→ dlt source ──→ DuckDB
+  /data_engineering_zoomcamp_api                               taxi_data.rides
+  ?page=1,2,...10                                              (10,000 rows)
+```
+
+### The Pagination Challenge
+The NYC Taxi API presented a unique challenge:
+1.  **Response format**: Returns a bare JSON **array** `[{...}, {...}, ...]` — NOT a JSON object.
+2.  **No total count**: No `total`, `count`, or `next` fields in the response.
+3.  **Stop condition**: Empty array `[]` signals end of data.
+
+This broke BOTH built-in approaches:
+-   **`RESTAPIConfig` (declarative)**: Could not auto-detect data in the flat array. The `data_selector: "$"` didn't work.
+-   **`PageNumberPaginator`**: Crashed with `ValueError: Total 'pages' not found in the response` because it expects a JSON object with a `total` key.
+
+### Solution: Custom Paginator
+```python
+class StopOnEmptyPaginator(BasePaginator):
+    """Page-number paginator that stops when an empty JSON array is returned."""
+    def __init__(self, start_page=1):
+        super().__init__()
+        self._page = start_page
+
+    def init_request(self, request):
+        request.params = request.params or {}
+        request.params["page"] = self._page
+
+    def update_state(self, response, data=None):
+        if not response.json():          # Empty array → stop
+            self._has_next_page = False
+        else:
+            self._page += 1
+            self._has_next_page = True
+
+    def update_request(self, request):
+        request.params = request.params or {}
+        request.params["page"] = self._page
+```
+
+Used with the `RESTClient` imperative approach:
+```python
+client = RESTClient(
+    base_url="https://us-central1-dlthub-analytics.cloudfunctions.net/",
+    paginator=StopOnEmptyPaginator(start_page=1),
+)
+
+@dlt.resource(name="rides", write_disposition="replace")
+def rides_resource():
+    for page in client.paginate("data_engineering_zoomcamp_api"):
+        yield page
+```
+
+### Results
+| Metric | Value |
+|--------|-------|
+| **Total records** | 10,000 |
+| **Pages fetched** | 10 (1,000 records/page) |
+| **Date range** | 2009-06-01 to 2009-06-30 |
+| **Columns** | 18 (end_lat, end_lon, fare_amt, passenger_count, payment_type, etc.) |
+| **Load time** | ~2.4 seconds (normalize + load) |
+
+### Homework Answers
+| Question | Query | Answer |
+|----------|-------|--------|
+| Q1: Date range | `SELECT MIN/MAX(trip_pickup_date_time)` | `2009-06-01` to `2009-07-01` |
+| Q2: Credit card % | `COUNT(*) / total WHERE payment_type = 'Credit'` | `26.66%` |
+| Q3: Total tips | `SUM(tip_amt)` | `$6,063.41` |
+
+## 4. Key Differences: dlt vs. Bruin vs. Airflow
+
+| Aspect | dlt | Bruin (Module 5) | Airflow (Modules 3-4) |
+|--------|-----|------|---------|
+| **Type** | Python library | CLI tool | Orchestration platform |
+| **Scope** | E + L (extract + load) | E + L + T (full ELT) | Orchestration only |
+| **Config** | Python dicts/decorators | YAML + SQL/Python | Python DAGs |
+| **Pagination** | Built-in paginators | N/A (custom Python) | Manual implementation |
+| **Schema** | Auto-inferred | Defined in assets | Manual DDL |
+| **Local dev** | DuckDB | DuckDB | Docker containers |
+| **Dependencies** | `pip install dlt` | `brew install bruin` | Docker Compose cluster |
+
+## 5. Challenges & Resolutions
+
+| Challenge | Resolution |
+|-----------|------------|
+| **Flat JSON array response** | Built-in paginators expect JSON objects with metadata. Created custom `StopOnEmptyPaginator` that checks `response.json()` for empty list. |
+| **`data_selector: "$"` not working** | Switched from declarative `RESTAPIConfig` to imperative `RESTClient.paginate()` which yields pages directly. |
+| **`PageNumberPaginator` ValueError** | The paginator requires a `total` field in the response. Since the API returns bare arrays, it can't determine total pages. Custom paginator avoids this. |
+| **Verbose dlt logging** | dlt logs entire response bodies to stderr, making error messages hard to find. Used `grep -n "Traceback"` on stderr to locate actual errors. |
+| **dlt column normalization** | Column names like `End_Lat` become `end_lat` after loading. Must query with normalized names. |
+
+## 6. Commands Reference
+
+```bash
+# Initialize a dlt project
+dlt init <source_name> <destination>
+
+# Run a pipeline
+python taxi_pipeline_pipeline.py
+
+# Query loaded data
+python -c "
+import duckdb
+conn = duckdb.connect('taxi_pipeline.duckdb', read_only=True)
+print(conn.sql('SELECT COUNT(*) FROM taxi_data.rides'))
+"
+
+# Check pipeline state
+dlt pipeline taxi_pipeline info
+
+# Show pipeline traces
+dlt pipeline taxi_pipeline trace
+```
+
+## 7. Key Takeaways
+1.  **dlt excels at REST API ingestion**: Declarative config for standard APIs, extensible `BasePaginator` for non-standard ones.
+2.  **Know your API response format**: The response shape (object vs array, nested vs flat) determines which paginator and data selector to use.
+3.  **Custom paginators are simple**: Subclass `BasePaginator`, implement 4 methods (`init_request`, `update_state`, `update_request`, `__init__`).
+4.  **dlt auto-normalizes everything**: Nested arrays become child tables, column names get snake_cased, every row gets `_dlt_id`.
+5.  **DuckDB + dlt = instant local analytics**: Zero-config local destination for rapid prototyping and homework queries.

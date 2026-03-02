@@ -10,6 +10,7 @@
 ![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
 ![Bruin](https://img.shields.io/badge/Bruin-FF6B35?style=for-the-badge&logoColor=white)
 ![DuckDB](https://img.shields.io/badge/DuckDB-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
+![dlt](https://img.shields.io/badge/dlt-FF6B35?style=for-the-badge&logoColor=white)
 
 A comprehensive journey through the [Data Engineering Zoomcamp](https://github.com/DataTalksClub/data-engineering-zoomcamp) by DataTalks.Club.
 
@@ -24,6 +25,7 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 | 3 | [Data Warehouse](#module-3-data-warehouse) | ✅ Complete |
 | 4 | [Analytics Engineering](#module-4-analytics-engineering) | ✅ Complete |
 | 5 | [Data Platforms](#module-5-data-platforms) | ✅ Complete |
+| WS | [Workshop: dlt](#workshop-dlt-data-load-tool) | ✅ Complete |
 | 6 | [Streaming](#module-6-streaming) | ⬜ Not Started |
 | 7 | [Project](#module-7-project) | ⬜ Not Started |
 
@@ -129,6 +131,24 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ---
 
+## Workshop: dlt (Data Load Tool)
+
+**Topics Covered:**
+- [x] dlt (Data Load Tool) for REST API ingestion
+- [x] Declarative REST API sources (`RESTAPIConfig`)
+- [x] Imperative REST client (`RESTClient`)
+- [x] Custom paginator for non-standard APIs
+- [x] Schema inference and auto-normalization
+- [x] DuckDB as local destination
+
+**Homework:** [View Workshop Homework](./Workshops/dlt/Homework/)
+
+**Key Files:**
+- [`taxi_pipeline_pipeline.py`](./Workshops/dlt/Homework/taxi_pipeline_pipeline.py) - NYC Taxi dlt pipeline with custom paginator
+- [`open_library_pipeline.py`](./Workshops/dlt/open_library_pipeline.py) - Open Library search pipeline (practice)
+
+---
+
 ## Module 6: Streaming
 
 **Topics to Cover:**
@@ -190,6 +210,14 @@ de-zoomcamp/
 │   │   └── README.md
 │   └── practice/
 │       └── learning_logs/
+├── Workshops/
+│   └── dlt/
+│       ├── Homework/        # dlt workshop homework
+│       │   ├── taxi_pipeline_pipeline.py
+│       │   └── README.md
+│       ├── open_library_pipeline.py
+│       └── practice/
+│           └── learning_logs/
 └── README.md
 ```
 
@@ -207,6 +235,7 @@ de-zoomcamp/
 | **Data Warehouse** | BigQuery |
 | **Analytics Engineering** | dbt (Data Build Tool) |
 | **Data Platforms** | Bruin, DuckDB |
+| **Data Load Tool** | dlt |
 | **Streaming** | Apache Kafka (upcoming) |
 
 ---
@@ -238,6 +267,9 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 
 **Module 5:**
 - [Day 16: Bruin ELT Pipeline (Ingestion, Staging, Reports)](./Module_5/practice/learning_logs/learnings_2026-02-25.txt)
+
+**Workshop: dlt:**
+- [Day 17: dlt REST API Pipelines (Open Library + NYC Taxi)](./Workshops/dlt/practice/learning_logs/learnings_2026-03-02.txt)
 
 ---
 

@@ -36,6 +36,15 @@ taxi_zone_lookup.csv
 # Airflow
 **/airflow/logs/
 
+# Cursor IDE
+.cursor/
+.cursorignore
+
+# dlt
+.dlt/
+*.duckdb
+*.wal
+
 # Python
 __pycache__/
 *.pyc
