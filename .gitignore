@@ -32,6 +32,16 @@ terraform/keys/
 
 # Data files (large)
 taxi_zone_lookup.csv
+*.csv
+*.csv.gz
+*.gz
+
+# Spark output artifacts
+*.crc
+*.snappy.parquet
+_SUCCESS
+**/fhvhv/
+**/zones.parquet/
 
 # Airflow
 **/airflow/logs/

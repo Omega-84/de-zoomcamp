@@ -1,0 +1,284 @@
+# Batch Processing with Apache Spark (Module 6)
+
+## Overview
+This module focuses on **batch processing** using **Apache Spark** (PySpark). We set up PySpark locally, verified the installation, and began exploring Spark's core DataFrame API using the NYC FHVHV (For-Hire Vehicle High Volume) trip data from January 2021. The emphasis is on understanding how Spark handles large-scale data differently from Pandas—through lazy evaluation, distributed execution, and schema enforcement.
+
+## 1. Concepts & Fundamentals
+
+### What is Batch Processing?
+-   **Batch processing** = processing a bounded, finite dataset all at once (as opposed to stream processing which handles data in real-time).
+-   Use cases: ETL pipelines, data warehouse loads, report generation, ML feature engineering.
+-   Tools: Apache Spark, Hadoop MapReduce, Hive, Flink (batch mode), dbt.
+-   **Batch vs. Stream**:
+    | Aspect           | Batch Processing            | Stream Processing             |
+    |------------------|-----------------------------|-------------------------------|
+    | Data             | Bounded, finite             | Unbounded, continuous         |
+    | Latency          | Minutes to hours            | Milliseconds to seconds       |
+    | Complexity       | Simpler to reason about     | Harder (ordering, late data)  |
+    | Tools            | Spark, Hive, dbt            | Kafka, Flink, Spark Streaming |
+    | Typical Schedule | Hourly, daily, weekly       | Always running                |
+
+### What is Apache Spark?
+-   **Distributed computing engine** for large-scale data processing.
+-   Written in Scala, runs on JVM, but has APIs for Python (PySpark), R, Java, SQL.
+-   **Key advantage over Pandas**: Spark distributes work across multiple cores/machines. Pandas is single-threaded and memory-bound.
+-   **When to use Spark over Pandas**:
+    -   Data doesn't fit in memory
+    -   Need to parallelize across a cluster
+    -   Complex transformations on very large datasets
+    -   Integration with data lake formats (Parquet, Delta, Iceberg)
+-   **When Pandas is fine**: Small datasets (<1GB), quick exploration, simple transforms.
+
+### Spark Architecture (High Level)
+```
+┌──────────────────────────────────────────┐
+│              Driver Program              │
+│  (SparkSession / SparkContext)           │
+│   - Defines transformations              │
+│   - Builds DAG of operations             │
+│   - Schedules tasks                      │
+└──────────┬───────────────────────────────┘
+           │
+    ┌──────┴──────┐
+    │ Cluster     │
+    │ Manager     │    (local[*], YARN, Mesos, K8s)
+    └──────┬──────┘
+           │
+    ┌──────┴──────────────────────────────┐
+    │         Executors (Workers)         │
+    │  ┌────────┐ ┌────────┐ ┌────────┐  │
+    │  │ Task 1 │ │ Task 2 │ │ Task 3 │  │
+    │  │ Part.1 │ │ Part.2 │ │ Part.3 │  │
+    │  └────────┘ └────────┘ └────────┘  │
+    └─────────────────────────────────────┘
+```
+
+### Key Spark Concepts
+-   **SparkSession**: Entry point to Spark. Created via `SparkSession.builder`.
+    -   `.master("local[*]")` → Use all available CPU cores locally.
+    -   `.master("local[2]")` → Use only 2 cores.
+    -   `.appName("test")` → Name shown in Spark UI (port 4040).
+-   **DataFrame**: Distributed collection of rows organized into named columns (like a table).
+-   **Lazy Evaluation**: Transformations (select, filter, groupBy) are NOT executed immediately. They build a logical plan (DAG). Only **actions** (show, count, collect, write) trigger execution.
+-   **Partitions**: Data is split into chunks (partitions). Each partition is processed by a separate task on a separate core. More partitions = more parallelism.
+-   **DAG (Directed Acyclic Graph)**: Spark builds a graph of transformations and optimizes it before executing.
+
+### Transformations vs Actions
+| Type             | Examples                                   | Triggers Execution? |
+|------------------|--------------------------------------------|---------------------|
+| **Transformation** | `select()`, `filter()`, `groupBy()`, `join()`, `withColumn()`, `repartition()` | No (lazy)           |
+| **Action**        | `show()`, `count()`, `collect()`, `head()`, `take()`, `write.parquet()`, `toPandas()` | Yes                 |
+
+## 2. Environment Setup
+
+### Installation
+-   **PySpark 4.1.1** installed via `uv` (added to `pyproject.toml` dependencies).
+-   Requires Java (JDK) — Spark runs on the JVM.
+-   No need to install Spark separately; `pyspark` pip package bundles everything.
+
+### Verification Script (`test_spark.py`)
+```python
+import pyspark
+from pyspark.sql import SparkSession
+from warnings import filterwarnings
+filterwarnings("ignore")
+
+spark = SparkSession.builder \
+    .master("local[*]") \
+    .appName('test') \
+    .getOrCreate()
+spark.sparkContext.setLogLevel("WARN")
+
+print(f"Spark version: {spark.version}")
+
+df = spark.range(10)
+df.show()
+
+spark.stop()
+```
+-   `spark.range(10)` creates a DataFrame with a single column `id` containing values 0–9.
+-   `spark.stop()` gracefully shuts down the SparkSession and releases resources.
+-   Successfully confirmed: **Spark 4.1.1** running locally.
+
+### Common Warnings (Safe to Ignore)
+-   `WARN Utils: Your hostname resolves to a loopback address` → WSL networking quirk; set `SPARK_LOCAL_IP` if needed.
+-   `WARN NativeCodeLoader: Unable to load native-hadoop library` → Using pure Java Hadoop classes; fine for local dev.
+
+## 3. Working with Real Data — FHVHV Trips
+
+### Data Source
+-   **Dataset**: NYC For-Hire Vehicle High Volume (FHVHV) trip data — Uber, Lyft, Via, Juno.
+-   **Period**: January 2021.
+-   **Source URL**: `https://github.com/DataTalksClub/nyc-tlc-data/releases/download/fhvhv/fhvhv_tripdata_2021-01.csv.gz`
+-   **Size**: ~130MB compressed (.csv.gz), millions of rows.
+
+### Schema
+| Column                | Type        | Description                           |
+|-----------------------|-------------|---------------------------------------|
+| `hvfhs_license_num`   | String      | License number (HV0003=Uber, etc.)    |
+| `dispatching_base_num`| String      | TLC base code                         |
+| `pickup_datetime`     | Timestamp   | Trip start time                       |
+| `dropoff_datetime`    | Timestamp   | Trip end time                         |
+| `PULocationID`        | Integer     | Pickup taxi zone ID                   |
+| `DOLocationID`        | Integer     | Dropoff taxi zone ID                  |
+| `SR_Flag`             | String      | Shared ride flag (mostly null)        |
+
+### Reading CSV Data
+```python
+# Basic read — all columns inferred as StringType
+df = spark.read \
+    .option("header", "true") \
+    .csv("./fhvhv_tripdata_2021-01.csv.gz")
+
+df.show()
+df.schema  # All StringType — not useful for analysis!
+```
+
+### The Schema Problem
+-   When Spark reads CSV with `inferSchema=False` (default), **everything is a string**.
+-   `inferSchema=True` is slow because Spark must scan the entire file to guess types.
+-   **Best practice**: Define the schema explicitly.
+
+### Schema Inference via Pandas (Trick)
+```python
+import pandas as pd
+
+# Read a small sample with Pandas (which infers types well)
+df_pandas = pd.read_csv('./fhvhv_tripdata_2021-01.csv.gz').head(1001)
+
+# Convert to Spark and inspect the inferred schema
+spark.createDataFrame(df_pandas).schema
+# → PULocationID: LongType, DOLocationID: LongType, SR_Flag: DoubleType
+```
+-   This gives a starting point, but needs manual refinement (e.g., Long → Integer, timestamps are still strings in CSV).
+
+### Explicit Schema Definition
+```python
+from pyspark.sql import types
+
+schema = types.StructType([
+    types.StructField('hvfhs_license_num', types.StringType(), True),
+    types.StructField('dispatching_base_num', types.StringType(), True),
+    types.StructField('pickup_datetime', types.TimestampType(), True),
+    types.StructField('dropoff_datetime', types.TimestampType(), True),
+    types.StructField('PULocationID', types.IntegerType(), True),
+    types.StructField('DOLocationID', types.IntegerType(), True),
+    types.StructField('SR_Flag', types.StringType(), True)
+])
+
+df = spark.read \
+    .option("header", "true") \
+    .schema(schema) \
+    .csv("./fhvhv_tripdata_2021-01.csv.gz")
+```
+**Why explicit schemas matter:**
+1.  **Performance**: No need for Spark to scan data to infer types.
+2.  **Correctness**: You control the types (e.g., `TimestampType` for dates).
+3.  **Stability**: Schema doesn't change if data changes slightly.
+
+### Common Spark SQL Types
+| PySpark Type          | Python Equivalent | Use Case                     |
+|-----------------------|-------------------|------------------------------|
+| `StringType()`        | `str`             | Text, IDs, categories        |
+| `IntegerType()`       | `int` (32-bit)    | Small integers               |
+| `LongType()`          | `int` (64-bit)    | Large integers, row counts   |
+| `DoubleType()`        | `float` (64-bit)  | Monetary values, coordinates |
+| `FloatType()`         | `float` (32-bit)  | Approximate numerics         |
+| `TimestampType()`     | `datetime`        | Date + time                  |
+| `DateType()`          | `date`            | Date only                    |
+| `BooleanType()`       | `bool`            | True/False flags             |
+
+## 4. Repartitioning & Writing Parquet
+
+### Why Repartition?
+-   A single `.csv.gz` file is a single partition → only 1 core works on it.
+-   **Repartitioning** splits the data across multiple partitions for parallel processing.
+-   `df.repartition(24)` → 24 partitions → up to 24 tasks in parallel.
+
+### Choosing Partition Count
+-   Rule of thumb: 2–4x the number of CPU cores.
+-   Too few partitions → underutilizes cluster.
+-   Too many partitions → overhead from task scheduling.
+-   For local dev with, say, 4 cores: 8–16 partitions is reasonable. 24 partitions works fine too.
+
+### Writing to Parquet
+```python
+df = df.repartition(24)
+df.write.parquet('./fhvhv/2021/01')
+```
+-   Writes 24 `.parquet` files (one per partition) into the output directory.
+-   **Parquet advantages over CSV**:
+    | Feature          | CSV                    | Parquet                     |
+    |------------------|------------------------|-----------------------------|
+    | Format           | Row-based, text        | Columnar, binary            |
+    | Compression      | Poor                   | Excellent (Snappy, GZIP)    |
+    | Schema           | No embedded schema     | Schema stored in file       |
+    | Read performance | Must read all columns  | Column pruning (read only needed cols) |
+    | Type safety      | All strings            | Native types preserved      |
+    | Size (FHVHV)     | ~130MB (.csv.gz)       | Much smaller per partition  |
+
+### Parquet Output Structure
+```
+fhvhv/2021/01/
+├── _SUCCESS                              # Marker file: write completed
+├── part-00000-*.snappy.parquet           # Partition 0
+├── part-00001-*.snappy.parquet           # Partition 1
+├── ...
+└── part-00023-*.snappy.parquet           # Partition 23
+```
+
+## 5. Spark UI & Monitoring
+-   When a SparkSession is active, the **Spark UI** is available at `http://localhost:4040`.
+-   Shows: active/completed jobs, stages, tasks, DAG visualization, executor info.
+-   Useful for debugging slow queries and understanding partition distribution.
+
+## 6. Key Differences: Spark DataFrame vs Pandas DataFrame
+
+| Feature            | Pandas DataFrame          | Spark DataFrame                  |
+|--------------------|---------------------------|----------------------------------|
+| Execution          | Eager (immediate)         | Lazy (builds DAG, executes on action) |
+| Memory             | Must fit in RAM           | Distributed across cluster       |
+| Mutability         | Mutable (in-place ops)    | Immutable (transformations return new DFs) |
+| API style          | `.sort_values()`, `.merge()` | `.orderBy()`, `.join()`          |
+| Type system        | NumPy dtypes              | Spark SQL types                  |
+| Parallelism        | Single-threaded           | Multi-core / multi-node          |
+| Best for           | < 1 GB, exploration       | > 1 GB, production pipelines     |
+
+## 7. Next Steps
+-   [ ] Explore Spark SQL: registering DataFrames as temp views and querying with SQL.
+-   [ ] Learn Spark transformations: `select()`, `filter()`, `withColumn()`, `groupBy()`, `agg()`.
+-   [ ] Understand shuffle operations: `join()`, `groupBy()`, `repartition()` vs `coalesce()`.
+-   [ ] Read Parquet back and run analytics on the FHVHV data.
+-   [ ] Explore `spark.sql()` for writing SQL queries on DataFrames.
+-   [ ] Study partitioning strategies (partition by date, hash partitioning).
+-   [ ] Learn about caching/persisting intermediate DataFrames.
+-   [ ] Understand Spark execution plans via `.explain()`.
+-   [ ] Explore Spark on a cluster (YARN, Kubernetes) vs local mode.
+-   [ ] Connect Spark with cloud storage (GCS, S3) for reading/writing.
+
+## 8. Commands Reference
+
+```bash
+# Install PySpark
+uv add pyspark
+
+# Run a Spark script
+uv run test_spark.py
+
+# Download FHVHV data
+wget https://github.com/DataTalksClub/nyc-tlc-data/releases/download/fhvhv/fhvhv_tripdata_2021-01.csv.gz
+
+# Check Java version (required for Spark)
+java -version
+
+# Access Spark UI (while session is active)
+# http://localhost:4040
+```
+
+## 9. Key Takeaways
+1.  **Spark is lazy**: Nothing happens until you call an action. This allows Spark to optimize the entire computation graph before executing.
+2.  **Schema enforcement is crucial**: Always define schemas explicitly for CSV data. Use `types.StructType` with `types.StructField`.
+3.  **Parquet > CSV**: For any analytical workload, convert CSV to Parquet first. It's faster to read, smaller on disk, and preserves types.
+4.  **Repartitioning controls parallelism**: The number of partitions determines how many tasks run in parallel. Match it to your hardware.
+5.  **Pandas trick for schema discovery**: Read a small CSV sample with Pandas, create a Spark DataFrame from it, and use `.schema` to get a starting point for your explicit schema.
+6.  **PySpark 4.x installs cleanly**: No need for a separate Spark installation. The `pyspark` package bundles everything including a local Spark runtime.
