@@ -42,6 +42,8 @@ taxi_zone_lookup.csv
 _SUCCESS
 **/fhvhv/
 **/zones.parquet/
+**/data/
+data/
 
 # Airflow
 **/airflow/logs/

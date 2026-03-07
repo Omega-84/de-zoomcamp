@@ -1,0 +1,118 @@
+# Batch Processing with Spark SQL (Module 6)
+
+## Overview
+This log documents the continuation of our journey with Apache Spark, diving into **Spark SQL** and multi-dataset transformations. Leveraging the Yellow and Green NYC Taxi data from 2020 and 2021, we went beyond single dataset manipulation to normalize schemas, union massive datasets, and run robust SQL analytics queries directly on top of Spark DataFrames. Finally, we output the result to partitioned Parquet files for long-term storage and downstream dashboarding.
+
+## 1. Concepts & Fundamentals
+
+### Reading Nested Parquet Directories
+You can read entire directory structures natively in PySpark by passing wildcards to `read.parquet()`.
+```python
+df_green = spark.read.parquet("./data/pq/green/*/*/")
+df_yellow = spark.read.parquet("./data/pq/yellow/*/*/")
+```
+-   This recursively scans the folders covering both 2020 and 2021 for the trip data.
+-   Spark is smart enough to unify the schema across these directories and build one large logical DataFrame representing millions of rows.
+
+### Column Normalization & Schema Alignment
+When analyzing multiple sources, the schemas are rarely identical. In NYC taxi data:
+-   Green trips have `lpep_pickup_datetime`
+-   Yellow trips have `tpep_pickup_datetime`
+
+We standardize these to ensure they can be `union`ed simply:
+```python
+# Rename columns using withColumnRenamed
+df_green = df_green \
+    .withColumnRenamed('lpep_pickup_datetime', 'pickup_datetime') \
+    .withColumnRenamed('lpep_dropoff_datetime', 'dropoff_datetime')
+```
+
+### Deriving "Common Columns" & Literal Types
+To perform a `UNION`, both tables must have the same schema. 
+-   We used standard Python sets to find the intersection of columns: `set(df_yellow.columns) & set(df_green.columns)`.
+-   We strictly `select()` only the common columns from both DataFrames so they match perfectly.
+-   We introduce a **literal column** using `F.lit()` to track the origin dataset.
+
+```python
+from pyspark.sql import functions as F
+
+df_green_sel = df_green.select(common_cols).withColumn('service_type', F.lit('green'))
+df_yellow_sel = df_yellow.select(common_cols).withColumn('service_type', F.lit('yellow'))
+```
+
+### Union All
+Combining two gigantic DataFrames is surprisingly performant natively in Spark:
+```python
+# Unites both DataFrames sequentially
+df_trips_data = df_green_sel.unionAll(df_yellow_sel)
+```
+-   `unionAll` preserves duplicates (unlike a set-based SQL `UNION`).
+-   After the union, our master table holds `~2.3M` green trips and `~39.6M` yellow trips!
+
+## 2. Using Spark SQL
+
+While the DataFrame API is powerful, many data engineers/analysts prefer writing explicit SQL. **Spark SQL** bridges the gap natively.
+
+### Registering Temp Views
+To run SQL queries against a DataFrame, you must first register it as a temporary view (or table).
+```python
+# Deprecated but still works: df.registerTempTable('name')
+# Recommended:
+df_trips_data.createOrReplaceTempView('trips_data')
+```
+-   **Temp Views** are bound only to the active `SparkSession`. If the session drops, the view disappears.
+
+### Executing SQL Queries
+Once registered, use `spark.sql("...")` to throw robust Hive-style SQL queries at the underlying RDDs. 
+```python
+df_result = spark.sql("""
+SELECT 
+    -- Reveneue grouping 
+    PULocationID AS revenue_zone,
+    date_trunc('month', pickup_datetime) AS revenue_month, 
+    service_type, 
+
+    -- Revenue calculation 
+    SUM(fare_amount) AS revenue_monthly_fare,
+    SUM(tip_amount) AS revenue_monthly_tip_amount,
+
+    -- Additional calculations
+    AVG(passenger_count) AS avg_montly_passenger_count
+FROM
+    trips_data
+GROUP BY
+    1, 2, 3
+""")
+```
+-   Under the hood, Spark converts this SQL into the exact same Optimized Logical Plan as if we wrote `df.groupBy().agg()`.
+-   Functions like `date_trunc()` are built directly into Spark SQL, identical to Postgres or DuckDB.
+
+## 3. Coalescing and Writing Results
+
+After calculating the massive revenue query, we want to save our aggregated table for BI visualization.
+
+### Understanding `coalesce()` vs `repartition()`
+```python
+df_result.coalesce(2).write.parquet("./data/report/revenue", mode='overwrite')
+```
+| Feature             | `repartition(n)` | `coalesce(n)` |
+|---------------------|-----------------|--------------|
+| Operation           | Expensive (Full Shuffle) | Cheap (No Shuffle) |
+| Reduces Partitions? | Yes             | Yes          |
+| Increases Partitions?| Yes             | No           |
+| When to use?         | When balancing data | When shrinking partition count before writing |
+
+- Our resulting DataFrame (after aggregation) is small. If we don't shrink it, Spark will write 200+ tiny `.parquet` files (default `spark.sql.shuffle.partitions` is 200). 
+- Using `.coalesce(2)` ensures exactly **two** output files get written into `data/report/revenue`.
+
+## 4. Key Takeaways
+
+1.  **Flexibility in APIs:** You can seamlessly switch between the programmatic PySpark DataFrame API (for schema renaming, literal appends) and Spark SQL (for advanced aggregation).
+2.  **Schema Enforcement with Globs:** Doing `spark.read.parquet(".../*/*/")` is extremely powerful for picking up hive-partitioned or deeply nested Datalake structures.
+3.  **coalesce() is the perfect flush mechanic:** Always think about your partition count *before* running an I/O operation like `.write`. 
+4.  **Temp Views unlock Analysts:** Data engineers can handle the heavy ETL (`unionAll`, reading, column dropping) and hand off clean `TempViews` to analysts to run pure SQL.
+
+## 5. Next Steps
+-   Explore Spark metrics natively inside the UI (`localhost:4040`) for the massive `union` and `groupBy` operations.
+-   Understand the concept of **Joins** in Spark, especially Broadcast Joins (i.e. joining the massive `df_trips_data` onto the tiny `taxi_zone_lookup.csv`). 
+-   Move this logic from an interactive `.ipynb` script into a deployable `.py` batch job to run via `spark-submit`.
