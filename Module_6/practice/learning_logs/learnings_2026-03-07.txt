@@ -114,5 +114,20 @@ df_result.coalesce(2).write.parquet("./data/report/revenue", mode='overwrite')
 
 ## 5. Next Steps
 -   Explore Spark metrics natively inside the UI (`localhost:4040`) for the massive `union` and `groupBy` operations.
--   Understand the concept of **Joins** in Spark, especially Broadcast Joins (i.e. joining the massive `df_trips_data` onto the tiny `taxi_zone_lookup.csv`). 
 -   Move this logic from an interactive `.ipynb` script into a deployable `.py` batch job to run via `spark-submit`.
+
+## 6. Advanced DataFrame Operations & Cloud Connectivity
+
+We also practiced advanced distributed operations across two separate notebooks (`groupby_join.ipynb` and `spark_gcs.ipynb`).
+
+### GroupBy and Distributed Joins (`groupby_join.ipynb`) 
+- **Time Truncation**: Used pure SQL via `date_trunc('hour', tpep_pickup_datetime)` to snap irregular trip times to clean hourly buckets for grouping.
+- **Outer Joins**: Experimented natively with `df_green.join(df_yellow, on=['hour', 'zone'], how='outer')`. We discovered that outer joins in Spark merge the schema symmetrically but populate `NULL` (missing data) for specific hour/zone combinations that only existed in one dataset.
+- **Dropping Columns post-Join**: Used `.drop('LocationID', 'zone')` to clean up duplicate artifact columns that resulted from overlapping table joins. 
+
+### Google Cloud Storage (GCS) Integration (`spark_gcs.ipynb`)
+- **Connector JARs**: We utilized the `gcs-connector-hadoop3-2.2.5.jar` to natively bridge Spark to Google Cloud Storage.
+- **SparkContext Mapping**: Learned that to interact with GCP, we must configure the underlying Hadoop FileSystem inside the SparkContext using exact Java paths:
+  - `fs.AbstractFileSystem.gs.impl` -> `com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS`
+  - `fs.gs.auth.service.account.json.keyfile` -> `./keys/my-creds.json`
+- **Native Read Execution**: Once configured, standard PySpark methods can natively read directly from cloud buckets using prefixes (e.g. `spark.read.parquet("gs://bucket-name/pq/green/*/*/")`), totally bypassing the need to download the cluster data locally.
