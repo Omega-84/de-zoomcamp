@@ -1,79 +1,39 @@
-# Debugging Spark Clusters & Python APIs (Module 6)
+# Wrapping up Batch Processing with Spark (Module 6)
 
 ## Overview
-Today, we tackled the complex relationship between PySpark (the Python library wrapper) and Apache Spark (the underlying Scala/Java JVM cluster). We diagnosed an invisible failure in our data processing, identified a severe JVM serialization mismatch caused by version drifting, formally tore down orphaned worker processes, initialized an official Spark Standalone Distribution cluster, and completely refactored our project directory schema for a production-grade architecture.
+Today marked the conclusion of our Module 6 studies, focusing on deploying PySpark scripts to the cloud using Google Cloud Dataproc and completing the final homework assignment.
 
-## 1. PySpark vs Spark Architecture
+## 1. Cloud Execution: Google Cloud Dataproc
+We transitioned our local `spark_sql.py` logic into a cloud-ready `spark_sql_dataproc.py` script and submitted it to a Dataproc cluster. We encountered several key hurdles that solidified our understanding of distributed computing resource limits and Spark's architecture.
 
-### The One-Way Street
-- **PySpark is just a syntax wrapper**: It cannot compute data on its own. When you write `df.filter()`, PySpark translates Python instructions and passes them to a JVM via Py4J.
-- **Spark acts independently**: The Spark backend is written in Scala (on the Java JVM). It doesn't need Python. You can start a completely isolated Spark master cluster daemon and connect to it as a client using Scala, R, Java, or PySpark.
+### Single-Node vs Distributed Clusters
+- Submitted an aggregation calculation covering 12 months of Yellow and Green taxi data (tens of millions of rows).
+- **The Issue**: A `SIGKILL 143` Out of Memory (OOM) error crashed our Spark Driver.
+- **The Cause**: We were running a Single-Node cluster configured with an `n4-standard-2` machine type (only 2 vCPUs and 8GB of memory). When Spark attempted to handle the shuffle operation required for `GROUP BY`, the OS ran out of RAM and aggressively killed the Spark Engine.
+- **The Solution**: Dataproc is fundamentally designed to distribute workloads. For high-volume spark operations, clusters must be deployed in **Standard (1 master, N workers)** mode. Distributing the pipeline across `worker-machine-type` instances isolates the executor tasks and allows memory loads to scale horizontally rather than crashing a single monolithic server.
 
-### Hidden Local Clusters
-```python
-# The default learning engine
-spark = SparkSession.builder.master("local[*]").getOrCreate()
-```
-If you omit a URL or use `local[*]`, PySpark quietly spins up a temporary mini-cluster inside your active Python memory space. It is destroyed when your script finishes. 
+### Advanced Concepts: Lazy Evaluation & The "Action" Trigger
+- **Observation**: The OOM crash didn't trigger when we unioned the datasets or explicitly defined the heavy SQL `GROUP BY` logic. It exclusively failed on `df_result.write.parquet()`.
+- **Reasoning**: Spark relies uniformly on **Lazy Evaluation**. Commands like `.read.parquet` and `spark.sql` are **Transformations**; they do zero actual work and simply build an optimized physical plan (DAG - Directed Acyclic Graph) in the background. Memory isn't consumed until an **Action** (like `.show()`, `.count()`, or specifically `.write`) tells the Spark engine to physically trigger the data pipeline. Because the data crunching happened during the write operation, that was the exact line of code the system caught the OOM exception at.
 
-### Remote/Standalone Engine
-```python
-# Connecting to an official standalone daemon
-spark = SparkSession.builder.master("spark://<IP>:7077").getOrCreate()
-```
-When using an official standalone daemon, your python script becomes a **lightweight client** that merely submits jobs to the Master. The Master farms it out to Worker CPUs, then sends the response back to your python process.
+## 2. Module 6 Homework Execution
+We successfully wrapped our Module 6 learning concepts executing queries against the `yellow_tripdata_2025-11.parquet` file within `hw.ipynb`. 
 
-## 2. Managing the Standalone Cluster
+### Key Methods Appended
+* **Repartitioning and Writing**: Explored how `.repartition(4).write.parquet(...)` physically outputs a fixed number of Snappy Compressed `.parquet` chunks to a directory (averaging ~25MB chunks out of a 100MB+ dataset).
+* **Length Differencing & Max Aggregation**: Computed trip durations logically natively without dropping to Pandas:
+  ```python
+  df_yellow = df_yellow.withColumn(
+      'trip_duration_hours',
+      (F.unix_timestamp('tpep_dropoff_datetime') - F.unix_timestamp('tpep_pickup_datetime')) / 3600
+  )
+  ```
+  Then chained `df_yellow.orderBy(F.desc("trip_duration_hours")).show()` to find maximum duration trips.
+* **Mastering UI Tooling**: Reinforced how checking Spark's internal Dashboard metrics (like Task progression and Executors allocations) dynamically spins up on default port `4040` locally.
+* **Translating Foreign Keys**: Verified logic for enriching our tables by reading the static `taxi_zone_lookup.csv` via PySpark, executing an Inner/Outer merge `.join(df_zones, df_join.zone == df_zones.LocationID)`, and dropping the alias `LocationID` columns to surface literal names (i.e. translating ID 1 into `Newark Airport`).
 
-Because we wanted a realistic architecture, we downloaded the official `spark-3.5.0-bin-hadoop3` tarball and configured our `.bashrc` terminal profile.
 
-### Cluster Management Commands
-- **Start the Master**: `start-master.sh` (Spins up a Master node. View the UI at `http://localhost:8080`)
-- **Start a Worker**: `start-worker.sh spark://BlackBeast.localdomain:7077` (Connects processing cores to the Master)
-- **Shut down cleanly**: `stop-all.sh`
-
-### Identifying Zombie Defaults
-When `start-master.sh` fails to bind to port 8080, it quietly spills over to 8081 or 8082! This happens if an orphaned python script previously crashed and abandoned a running Master daemon on port 8080.
-- **Find the orphans**: `jps -l` (Lists all active Java Virtual Machine processes exactly like `ps aux`)
-- **Kill sequence**: `kill -9 <PID>`
-
-## 3. The `JavaPackage` Mismatch Bug
-We encountered a terminal runtime error when PySpark tried to execute: `TypeError: 'JavaPackage' object is not callable`
-Eventually we diagnosed this via logs: `java.io.InvalidClassException: local class incompatible`
-
-**Root Cause:** 
-Our python virtual environment library (`uv add pyspark`) installed **PySpark v4.1.1** but the official Java standalone cluster we connected it to was **Spark v3.5.0**. The python code was serializing Spark 4 objects and shipping them over to Spark 3 JVMs, absolutely annihilating the translation layer.
-**Fix:** 
-We matched the APIs symmetrically: `uv remove pyspark && uv add pyspark==3.5.4`
-
-## 4. Path Organization
-Since our environment handles massive `.csv.gz` and output `.parquet` artifacts alongside executable bash scripts and `.ipynb` experimentation notebooks, all our artifacts were getting jumbled.
-
-We generated a clean schema and used `sed`/`perl` regex mass-replacements (`s/data\//..\/data\//g`) inside our notebooks and scripts to intelligently adapt all code to look for data relative to their new nested locations:
-
-# Final Directory Layout (Clean Architecture)
-```text
-practice/
-├── data/
-│   ├── raw/
-│   ├── pq/
-│   └── fhvhv/
-├── notebooks/
-│   └── 05_taxi_schema.ipynb
-├── scripts/
-│   ├── download_data.sh
-│   └── spark_sql.py
-├── terraform/
-│   └── main.tf
-└── learning_logs/
-```
-
-## 5. Spark SQL Notebook Exercises
-Prior to transitioning to our standalone cluster, we thoroughly experimented natively using PySpark's local runtime in `notebooks/spark_sql.ipynb`. 
-Key operations practiced and mapped:
-- **`spark.read.parquet()`**: Read and merge datasets dynamically using wildcards (`../pq/green/*/*/`)
-- **`.withColumnRenamed()`**: Normalizing columns with differing names (e.g. `lpep_pickup_datetime` to `pickup_datetime`) between Green and Yellow datasets.
-- **`unionAll()`**: Vertically stacking dataframes that share symmetrical schemas.
-- **`F.lit()`**: Creating static identification columns (like `.withColumn('service_type', F.lit('green'))`) prior to unions so downstream aggregations can still filter by source.
-- **`registerTempTable()`**: Exposing dataframes to standard pure-SQL execution.
-- **`spark.sql()`**: Executing complex multi-line ANSI SQL aggregations across our PySpark engine.
+## 3. Project Organization
+- Merged and renamed learning logs to appropriately track chronological progress.
+- Formatted `Module_6/Homework/README.md` to cleanly align with prior reporting standards.
+- Updated root `README.md` marking **Module 6: Batch Processing - ✅ Complete**!

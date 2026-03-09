@@ -26,7 +26,7 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 | 4 | [Analytics Engineering](#module-4-analytics-engineering) | ✅ Complete |
 | 5 | [Data Platforms](#module-5-data-platforms) | ✅ Complete |
 | WS | [Workshop: dlt](#workshop-dlt-data-load-tool) | ✅ Complete |
-| 6 | [Streaming](#module-6-streaming) | ⬜ Not Started |
+| 6 | [Batch Processing](#module-6-batch-processing) | ✅ Complete |
 | 7 | [Project](#module-7-project) | ⬜ Not Started |
 
 ---
@@ -149,12 +149,21 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ---
 
-## Module 6: Streaming
+## Module 6: Batch Processing
 
-**Topics to Cover:**
-- [ ] Apache Kafka
-- [ ] Stream processing
-- [ ] Real-time data pipelines
+**Topics Covered:**
+- [x] Apache Spark architecture (Driver, Executors, Partitioning)
+- [x] PySpark DataFrame API (Read, Transform, Repartition, Write)
+- [x] Spark SQL & Temporary Views
+- [x] Google Cloud Dataproc cluster execution
+- [x] Integrating PySpark with Google Cloud Storage
+- [x] Analyzing NYC trip data via Spark SQL
+
+**Homework:** [View Homework 6](./Module_6/Homework/)
+
+**Key Files:**
+- [`hw.ipynb`](./Module_6/Homework/hw.ipynb) - PySpark dataframe manipulation
+- [`spark_sql_dataproc.py`](./Module_6/practice/scripts/spark_sql_dataproc.py) - GCP Dataproc submission script
 
 ---
 
@@ -218,6 +227,13 @@ de-zoomcamp/
 │       ├── open_library_pipeline.py
 │       └── practice/
 │           └── learning_logs/
+├── Module_6/
+│   ├── Homework/            # Spark processing homework
+│   │   ├── hw.ipynb
+│   │   └── README.md
+│   └── practice/
+│       ├── scripts/         # PySpark execution scripts
+│       └── learning_logs/
 └── README.md
 ```
 
@@ -236,6 +252,7 @@ de-zoomcamp/
 | **Analytics Engineering** | dbt (Data Build Tool) |
 | **Data Platforms** | Bruin, DuckDB |
 | **Data Load Tool** | dlt |
+| **Batch Processing** | Apache Spark |
 | **Streaming** | Apache Kafka (upcoming) |
 
 ---
@@ -270,6 +287,12 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 
 **Workshop: dlt:**
 - [Day 17: dlt REST API Pipelines (Open Library + NYC Taxi)](./Workshops/dlt/practice/learning_logs/learnings_2026-03-02.txt)
+
+**Module 6:**
+- [Day 18: Spark Basics & Architecture](./Module_6/practice/learning_logs/learnings_2026-03-04.txt)
+- [Day 19: Spark SQL & Distributed Joins](./Module_6/practice/learning_logs/learnings_2026-03-07.txt)
+- [Day 20: Google Cloud Dataproc Clusters](./Module_6/practice/learning_logs/learnings_2026-03-08.txt)
+- [Day 21: Batch Processing Homework](./Module_6/practice/learning_logs/learnings_2026-03-09.txt)
 
 ---
 
