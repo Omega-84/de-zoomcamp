@@ -13,5 +13,5 @@ dependencies = [
     "ipython>=9.10.0",
     "pandas>=3.0.0",
     "pyarrow>=23.0.0",
-    "pyspark>=4.1.1",
+    "pyspark==3.5.0",
 ]
