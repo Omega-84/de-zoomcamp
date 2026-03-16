@@ -15,3 +15,7 @@ dependencies = [
     "pyarrow>=23.0.0",
     "pyspark==3.5.0",
 ]
+
+[tool.uv.workspace]
+members = [
+]

@@ -27,7 +27,8 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 | 5 | [Data Platforms](#module-5-data-platforms) | ✅ Complete |
 | WS | [Workshop: dlt](#workshop-dlt-data-load-tool) | ✅ Complete |
 | 6 | [Batch Processing](#module-6-batch-processing) | ✅ Complete |
-| 7 | [Project](#module-7-project) | ⬜ Not Started |
+| 7 | [Real-Time Streaming](#module-7-real-time-streaming) | ✅ Complete |
+| 8 | [Project](#module-8-project) | ⬜ Not Started |
 
 ---
 
@@ -167,7 +168,25 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 
 ---
 
-## Module 7: Project
+## Module 7: Real-Time Streaming
+
+**Topics Covered:**
+- [x] Kafka & Redpanda architecture
+- [x] Running stream infrastructure with Docker Compose
+- [x] Python Kafka Producers and Consumers
+- [x] Isolated environments with `uv` for version compatibility
+- [x] Streaming data ingestion into PostgreSQL
+
+**Practice:** [View Module 7 Practice](./Module_7/practice/)
+
+**Key Files:**
+- [`producer.ipynb`](./Module_7/practice/notebooks/producer.ipynb) - Data streaming producer
+- [`consumer_db.ipynb`](./Module_7/practice/notebooks/consumer_db.ipynb) - Stream to Postgres sink
+- [`docker-compose.yaml`](./Module_7/practice/docker-compose.yaml) - Redpanda + Postgres stack
+
+---
+
+## Module 8: Project
 
 **Topics to Cover:**
 - [ ] End-to-end data pipeline
@@ -234,6 +253,13 @@ de-zoomcamp/
 │   └── practice/
 │       ├── scripts/         # PySpark execution scripts
 │       └── learning_logs/
+├── Module_7/
+│   ├── practice/
+│   │   ├── docker-compose.yaml
+│   │   ├── notebooks/
+│   │   │   ├── consumer.ipynb
+│   │   │   └── producer.ipynb
+│   │   └── learning_logs/
 └── README.md
 ```
 
@@ -253,7 +279,8 @@ de-zoomcamp/
 | **Data Platforms** | Bruin, DuckDB |
 | **Data Load Tool** | dlt |
 | **Batch Processing** | Apache Spark |
-| **Streaming** | Apache Kafka (upcoming) |
+| **Streaming** | Redpanda, Kafka |
+| **Workflow Orchestration** | Kestra, Airflow |
 
 ---
 
@@ -293,6 +320,9 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 - [Day 19: Spark SQL & Distributed Joins](./Module_6/practice/learning_logs/learnings_2026-03-07.txt)
 - [Day 20: Google Cloud Dataproc Clusters](./Module_6/practice/learning_logs/learnings_2026-03-08.txt)
 - [Day 21: Batch Processing Homework](./Module_6/practice/learning_logs/learnings_2026-03-09.txt)
+
+**Module 7:**
+- [Day 22: Kafka, Redpanda & Stream Ingestion](./Module_7/practice/learning_logs/learnings_2026-03-16.txt)
 
 ---
 

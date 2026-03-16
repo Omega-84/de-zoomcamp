@@ -2,6 +2,8 @@ dez/
 .venv/
 *.parquet
 *.ipynb
+!Module_6/**/*.ipynb
+!Module_7/**/*.ipynb
 .ipynb_checkpoints/
 .python-version
 

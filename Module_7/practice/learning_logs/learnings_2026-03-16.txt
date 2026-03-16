@@ -1,0 +1,49 @@
+# Module 7: Real-Time Streaming with Kafka & Redpanda
+
+## Overview
+This module focused on setting up a real-time streaming architecture using Redpanda (Kafka-compatible) and processing streams with Python to ingest data into a PostgreSQL database. A major highlight was managing environment isolation for specific project requirements.
+
+## 1. Environment Management: Isolation with UV
+To ensure compatibility with specific streaming libraries and Python 3.12, we implemented a fully isolated environment for Module 7, breaking away from the main project workspace.
+
+### Steps for Isolation:
+- **Workspace Removal**: Removed `Module_7/practice` from the root `pyproject.toml` workspace members to prevent it from sharing the global `.venv`.
+- **Python Pinning**: Used `uv python pin 3.12` to strictly enforce the Python version for this module.
+- **Local Dependency Tracking**: Initialized a local `pyproject.toml` and `uv.lock` within the module directory.
+- **Jupyter Connectivity**: Installed `ipykernel` and `jupyter` within the isolated environment to allow notebooks to "see" and use the local virtual environment.
+
+## 2. Infrastructure: Redpanda & PostgreSQL
+We utilized Docker Compose to spin up a local streaming ecosystem.
+
+- **Redpanda**: A modern, C++ based Kafka-compatible platform that eliminates the need for Zookeeper, making it lightweight for local development. It provides a Kafka API on port `9092`.
+- **PostgreSQL**: Used as a sink for processed streaming events.
+- **Workflow**:
+  1. Producers fetch/generate taxi trip data and push messages to the Redpanda topic.
+  2. Consumers subscribe to the topic, perform lightweight transformations (like selecting specific columns), and batch-insert the results into Postgres.
+
+## 3. Implementation Details
+### Producer (`producer.ipynb`)
+- Connected to Redpanda using the `kafka-python` library.
+- Initialized a `KafkaProducer` pointing to `localhost:9092`.
+- Iterated through taxi data chunks and sent JSON-serialized messages to the topic.
+
+### Consumer & Sink (`consumer_db.ipynb`)
+- Subscribed to the Kafka topic.
+- Utilized `json.loads` to deserialize incoming byte streams.
+- Connected to the PostgreSQL instance using `psycopg` and `SQLAlchemy` (or raw SQL).
+- Implemented a "Processed Events" table to store the final trip data:
+  ```sql
+  CREATE TABLE processed_events (
+      PULocationID INTEGER,
+      DOLocationID INTEGER,
+      trip_distance DOUBLE PRECISION,
+      total_amount DOUBLE PRECISION,
+      pickup_datetime TIMESTAMP
+  );
+  ```
+- Verified the pipeline status: Successfully ingested **2000 records** into the database during the practice session.
+
+## 4. Troubleshooting & Best Practices
+- **Kernel Selection**: When working with isolated environments in VS Code/Jupyter, always ensure the kernel is set to the local `.venv (practice)` to avoid `ModuleNotFoundError`.
+- **Docker Cleanup**: Always run `docker compose down` to free up system resources and ports when streaming tests are complete.
+- **Consumer Offsets**: Understood how Kafka tracks progress (offsets) to ensure that if a consumer restarts, it can pick up exactly where it left off.
