@@ -174,15 +174,18 @@ A comprehensive journey through the [Data Engineering Zoomcamp](https://github.c
 - [x] Kafka & Redpanda architecture
 - [x] Running stream infrastructure with Docker Compose
 - [x] Python Kafka Producers and Consumers
+- [x] **Apache Flink** architecture & stateful processing
+- [x] **Tumble Windows** for streaming aggregations
+- [x] Handling late data with **Watermarks**
 - [x] Isolated environments with `uv` for version compatibility
-- [x] Streaming data ingestion into PostgreSQL
+- [x] Streaming data ingestion into PostgreSQL via JDBC sink
 
 **Practice:** [View Module 7 Practice](./Module_7/practice/)
 
 **Key Files:**
-- [`producer.ipynb`](./Module_7/practice/notebooks/producer.ipynb) - Data streaming producer
-- [`consumer_db.ipynb`](./Module_7/practice/notebooks/consumer_db.ipynb) - Stream to Postgres sink
-- [`docker-compose.yaml`](./Module_7/practice/docker-compose.yaml) - Redpanda + Postgres stack
+- [`producer_realtime.py`](./Module_7/practice/src/producers/producer_realtime.py) - Real-time data producer with simulated lateness
+- [`aggregation_job.py`](./Module_7/practice/src/job/aggregation_job.py) - PyFlink tumble window aggregation job
+- [`docker-compose.yaml`](./Module_7/practice/docker-compose.yaml) - Redpanda + Postgres + Flink stack
 
 ---
 
@@ -256,6 +259,9 @@ de-zoomcamp/
 ├── Module_7/
 │   ├── practice/
 │   │   ├── docker-compose.yaml
+│   │   ├── src/
+│   │   │   ├── producers/             # Real-time event generators
+│   │   │   └── job/                   # PyFlink stream processing jobs
 │   │   ├── notebooks/
 │   │   │   ├── consumer.ipynb
 │   │   │   └── producer.ipynb
@@ -279,7 +285,7 @@ de-zoomcamp/
 | **Data Platforms** | Bruin, DuckDB |
 | **Data Load Tool** | dlt |
 | **Batch Processing** | Apache Spark |
-| **Streaming** | Redpanda, Kafka |
+| **Streaming** | Redpanda, Kafka, **Apache Flink** |
 | **Workflow Orchestration** | Kestra, Airflow |
 
 ---
@@ -323,6 +329,7 @@ Daily learning logs documenting concepts, commands, and key takeaways:
 
 **Module 7:**
 - [Day 22: Kafka, Redpanda & Stream Ingestion](./Module_7/practice/learning_logs/learnings_2026-03-16.txt)
+- [Day 23: Apache Flink & Streaming Aggregations](./Module_7/practice/learning_logs/learnings_2026-03-19.txt)
 
 ---
 

@@ -1,0 +1,43 @@
+# Module 7: Stateful Stream Processing with Apache Flink
+
+## Overview
+Following the Kafka/Redpanda introduction, this part explored **Apache Flink**, focusing on stream transformations, windowing, and handling event-time anomalies like lateness using Watermarks.
+
+## 1. Apache Flink Architecture
+Fluent in both batch and stream processing, Flink's architecture involves:
+- **JobManager**: The brain of the operation, scheduling tasks and managing state.
+- **TaskManager**: The workers executing the actual data streams.
+- **Parallelism**: Controlling the number of concurrent task instances to handle high-throughput scenarios.
+
+## 2. Windowing Concepts: Tumble vs Sliding
+Streaming data is infinite, so to perform aggregations, we must slice it into discrete windows.
+- **Tumble Windows**: Fixed-size, non-overlapping intervals (e.g., *every 1 hour*).
+  - Used in our `aggregation_job.py` to calculate hourly revenue and trip counts.
+- **Sliding Windows**: Overlapping intervals (e.g., *the last 1 hour, updated every 5 minutes*). Useful for moving averages.
+
+## 3. Handling Lateness: Watermarks
+In real-world networks, some events arrive out of order or late.
+- **Watermarking**: A mechanism that tells Flink how long to "wait" before declaring that no more events for a specific timestamp will arrive.
+- **Implementation**: In our Kafka source DDL, we used:
+  ```sql
+  WATERMARK for event_timestamp as event_timestamp - INTERVAL '5' SECOND
+  ```
+- This allows a 5-second buffer for late events to arrive and be included in the correct window calculation.
+
+## 4. PyFlink & StreamTableEnvironment
+We leveraged the **Table API & SQL** interface to describe complex streaming logic using standard SQL syntax:
+- **Source**: Kafka (Redpanda) using the `connector = 'kafka'`.
+- **Sink**: PostgreSQL using the `connector = 'jdbc'` (Postgres).
+- **Transformation**: A SQL `INSERT INTO... SELECT` that performs a `TUMBLE` group by to calculate `COUNT(*)` and `SUM(total_amount)` per zone and time-window.
+
+## 5. Testing with Real-Time Data Generation
+We created a **Real-Time Producer** (`producer_realtime.py`) that simulates the NYC taxi stream.
+- **Scenario Simulation**: The producer generates ~20% late events (delayed by 3-10 seconds).
+- **Purpose**: This specifically tests Flink's Watermarking logic to ensure late events are still correctly assigned to their respective 1-hour tumble windows rather than being dropped or assigned to current time.
+
+## Conclusion: End-to-End Pipeline Successful
+We successfully orchestrated the following flow:
+1. **Producer** generates fake NYC taxi rides with simulated lateness.
+2. **Redpanda** (Kafka) buffers the stream on the `rides` topic.
+3. **Apache Flink** consumes the stream, manages the tumble window state, handles lateness via watermarks, and aggregates results.
+4. **PostgreSQL** stores the final hourly aggregates for visualization and reporting.

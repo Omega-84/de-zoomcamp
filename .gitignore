@@ -82,7 +82,9 @@ logs/*.log
 logs/queries
 *.py[cod]
 
-# Spark
+# Spark & Flink
 spark-3.5.0-bin-hadoop3/
 spark_error.log
 lib/
+checkpoints/
+savepoints/
